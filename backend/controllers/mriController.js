@@ -1,7 +1,50 @@
+const fs = require('fs');
+const path = require('path');
 const MriReport = require('../models/MriReport');
 const Patient = require('../models/Patient');
 const Notification = require('../models/Notification');
 const logActivity = require('../utils/activityLogger');
+
+// Helper function to call Python ML service
+const runMriAnalysis = async (mriReport, originalFileName) => {
+  const mlServiceUrl = process.env.ML_SERVICE_URL || 'http://127.0.0.1:8000/predict';
+
+  try {
+    const absoluteFilePath = path.join(__dirname, '..', mriReport.filePath);
+    if (!fs.existsSync(absoluteFilePath)) {
+      throw new Error(`File not found at path: ${absoluteFilePath}`);
+    }
+
+    const fileBuffer = fs.readFileSync(absoluteFilePath);
+    const formData = new FormData();
+    const blob = new Blob([fileBuffer], { type: 'image/png' });
+    formData.append('file', blob, originalFileName || mriReport.fileName);
+
+    const response = await fetch(mlServiceUrl, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`ML service returned status ${response.status}: ${errorText}`);
+    }
+
+    const mlResult = await response.json(); // { prediction: '...', confidence: 97.82 }
+
+    mriReport.status = 'Completed';
+    mriReport.result = `${mlResult.prediction} (${mlResult.confidence.toFixed(2)}% confidence)`;
+    await mriReport.save();
+
+    return mlResult;
+  } catch (error) {
+    console.error('Error running MRI AI analysis:', error.message);
+    mriReport.status = 'Error';
+    mriReport.result = `Analysis failed: ${error.message}`;
+    await mriReport.save();
+    throw error;
+  }
+};
 
 // @desc    Upload MRI Report (Doctor only)
 // @route   POST /api/mri/upload
@@ -29,42 +72,95 @@ const uploadMri = async (req, res) => {
       filePath: `/uploads/${req.file.filename}`,
       fileName: req.file.originalname,
       status: 'Pending',
-      result: 'Analysis Pending - Reserved for Future AI Model',
+      result: 'Analysis Pending - AI Processing...',
     });
 
-    // Need to save again or query to make sure mriId pre-save hook is finished and accessible on object
+    // Fetch the saved MRI to ensure fields from pre-save hooks are ready
     const savedMri = await MriReport.findById(mriReport._id);
+
+    // Call ML service asynchronously to not block the response, or synchronously if we want to return results immediately.
+    // The requirement says: "Return prediction + confidence -> Display result in React". 
+    // If we run it inline and return the completed report, it makes displaying results immediate.
+    let mlError = null;
+    try {
+      await runMriAnalysis(savedMri, req.file.originalname);
+    } catch (err) {
+      mlError = err.message;
+    }
+
+    // Refresh report details from DB
+    const finalMriReport = await MriReport.findById(mriReport._id);
 
     await Notification.create({
       userId: patientId,
       userType: 'Patient',
-      message: `Dr. ${req.user.name} uploaded a new MRI report: ${req.file.originalname}. Analysis pending.`,
+      message: `Dr. ${req.user.name} uploaded a new MRI report: ${req.file.originalname}. Analysis: ${finalMriReport.result}`,
     });
 
     await logActivity(
       req.user._id,
       'Doctor',
       'MRI Uploaded',
-      `Dr. ${req.user.name} uploaded MRI scan "${req.file.originalname}" (${savedMri.mriId || 'MRI-XXXX'}) for Patient ${patient.name} (${patient.patientId})`
+      `Dr. ${req.user.name} uploaded MRI scan "${req.file.originalname}" (${finalMriReport.mriId || 'MRI-XXXX'}) for Patient ${patient.name}. Classification: ${finalMriReport.result}`
     );
 
-    res.status(201).json(savedMri);
+    res.status(201).json(finalMriReport);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Placeholder MRI AI Analysis
+// @desc    Placeholder/Real MRI AI Analysis
 // @route   POST /api/mri/analyze
-// @access  Public or Private (Exposed empty placeholder)
+// @access  Private (Doctor or Patient)
 const analyzeMriPlaceholder = async (req, res) => {
-  if (req.user) {
-    await logActivity(req.user._id, req.role, 'MRI Analysis Triggered', `MRI AI analysis placeholder triggered`);
+  const { reportId, patientId } = req.body;
+
+  try {
+    let report = null;
+
+    if (reportId) {
+      report = await MriReport.findById(reportId);
+    } else if (patientId) {
+      report = await MriReport.findOne({ patientId }).sort({ createdAt: -1 });
+    } else {
+      // Find latest pending or any latest report for current user context
+      if (req.role === 'Patient') {
+        report = await MriReport.findOne({ patientId: req.user._id }).sort({ createdAt: -1 });
+      } else {
+        // Doctor: find latest report uploaded by this doctor
+        report = await MriReport.findOne({ doctorId: req.user._id }).sort({ createdAt: -1 });
+      }
+    }
+
+    if (!report) {
+      return res.status(404).json({ message: 'No MRI report found to analyze.' });
+    }
+
+    // Perform analysis
+    const mlResult = await runMriAnalysis(report);
+
+    if (req.user) {
+      await logActivity(
+        req.user._id,
+        req.role,
+        'MRI Analysis Triggered',
+        `MRI AI analysis triggered for report ${report.mriId || report._id}. Result: ${report.result}`
+      );
+    }
+
+    res.json({
+      status: 'success',
+      prediction: mlResult.prediction,
+      confidence: mlResult.confidence,
+      report,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: error.message,
+    });
   }
-  res.json({
-    status: 'pending',
-    message: 'AI Model will be integrated later.',
-  });
 };
 
 // @desc    Get MRI Reports for a Patient
@@ -98,3 +194,4 @@ module.exports = {
   analyzeMriPlaceholder,
   getMrisByPatient,
 };
+

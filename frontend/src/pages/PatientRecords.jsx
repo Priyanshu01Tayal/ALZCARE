@@ -7,6 +7,7 @@ import {
   CheckCircle,
   Clock,
   ClipboardList,
+  BrainCircuit,
 } from 'lucide-react';
 
 const PatientRecords = () => {
@@ -14,6 +15,7 @@ const PatientRecords = () => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [aiMessage, setAiMessage] = useState(null);
+  const [testingAi, setTestingAi] = useState(false);
   const [activeTab, setActiveTab] = useState('docs');
 
   // Timeline state
@@ -54,10 +56,21 @@ const PatientRecords = () => {
 
   const handleTestAi = async () => {
     try {
-      const res = await api.analyzeMri();
+      setTestingAi(true);
+      setAiMessage(null);
+      const patientId = user._id || user.user?._id;
+      const res = await api.analyzeMri({ patientId });
       setAiMessage(res.data);
+      fetchProfile();
+      fetchTimeline();
     } catch (err) {
       console.error(err);
+      setAiMessage({
+        status: 'error',
+        message: err.response?.data?.message || 'Failed to analyze MRI scan.'
+      });
+    } finally {
+      setTestingAi(false);
     }
   };
 
@@ -198,7 +211,7 @@ const PatientRecords = () => {
               </h3>
 
               {mris?.length === 0 ? (
-                <div className="p-8 text-center text-slate-450 text-xs bg-slate-50 border border-slate-100 rounded-xl">
+                <div className="p-8 text-center text-slate-455 text-xs bg-slate-50 border border-slate-100 rounded-xl">
                   No MRI scan reports uploaded yet.
                 </div>
               ) : (
@@ -223,12 +236,21 @@ const PatientRecords = () => {
                         <span className="inline-flex items-center px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-150 w-fit">
                           <CheckCircle className="h-3 w-3 mr-1" /> Upload Successful
                         </span>
-                        <span className="inline-flex items-center px-2.5 py-1 rounded bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-150 w-fit">
-                          <Clock className="h-3 w-3 mr-1 animate-pulse" /> Analysis Pending
-                        </span>
-                        <span className="inline-flex items-center px-2.5 py-1 rounded bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200 w-fit">
-                          Reserved for Future AI Model
-                        </span>
+                        {m.status === 'Completed' && (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-150 w-fit">
+                            <BrainCircuit className="h-3 w-3 mr-1" /> {m.result}
+                          </span>
+                        )}
+                        {m.status === 'Pending' && (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-150 w-fit">
+                            <Clock className="h-3 w-3 mr-1 animate-pulse" /> AI Processing...
+                          </span>
+                        )}
+                        {m.status === 'Error' && (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded bg-rose-50 text-rose-700 text-[10px] font-bold border border-rose-150 w-fit">
+                            ⚠️ {m.result || 'Analysis Failed'}
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -238,14 +260,28 @@ const PatientRecords = () => {
               <div className="border-t border-slate-150 pt-4">
                 <button
                   onClick={handleTestAi}
-                  className="w-full bg-slate-800 hover:bg-slate-700 text-white py-2 rounded-xl text-xs font-semibold transition"
+                  disabled={testingAi}
+                  className="w-full bg-slate-800 hover:bg-slate-700 disabled:bg-slate-300 text-white py-2 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-1"
                 >
-                  Test Future AI Endpoint
+                  {testingAi ? (
+                    <>
+                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent mr-1"></span>
+                      <span>Analyzing Scan...</span>
+                    </>
+                  ) : (
+                    <span>Run AI Analysis on Latest</span>
+                  )}
                 </button>
                 {aiMessage && (
-                  <div className="mt-3 p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-[11px] text-indigo-700 space-y-1">
+                  <div className={`mt-3 p-3 rounded-xl text-[11px] space-y-1 ${
+                    aiMessage.status === 'error'
+                      ? 'bg-rose-50 border border-rose-100 text-rose-700'
+                      : 'bg-indigo-50 border border-indigo-100 text-indigo-700'
+                  }`}>
                     <p><strong>Status:</strong> {aiMessage.status}</p>
-                    <p><strong>Message:</strong> {aiMessage.message}</p>
+                    {aiMessage.prediction && <p><strong>Prediction:</strong> {aiMessage.prediction}</p>}
+                    {aiMessage.confidence && <p><strong>Confidence:</strong> {aiMessage.confidence}%</p>}
+                    {aiMessage.message && <p><strong>Message:</strong> {aiMessage.message}</p>}
                   </div>
                 )}
               </div>

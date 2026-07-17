@@ -21,7 +21,7 @@ const api = {
   uploadMri: (formData) => axios.post('/api/mri/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
-  analyzeMri: () => axios.post('/api/mri/analyze'),
+  analyzeMri: (data) => axios.post('/api/mri/analyze', data),
   getMriReports: (patientId) => axios.get(`/api/mri/patient/${patientId}`),
 
   // Games

@@ -27,6 +27,7 @@ const PatientDetails = () => {
   const [mriFile, setMriFile] = useState(null);
   const [uploadingMri, setUploadingMri] = useState(false);
   const [aiMessage, setAiMessage] = useState(null);
+  const [testingAi, setTestingAi] = useState(false);
 
   const [prescriptionForm, setPrescriptionForm] = useState({
     notes: '',
@@ -117,13 +118,23 @@ const PatientDetails = () => {
     }
   };
 
-  // Run mock AI analysis
+  // Run real AI analysis
   const handleTestAi = async () => {
     try {
-      const res = await api.analyzeMri();
+      setTestingAi(true);
+      setAiMessage(null);
+      const res = await api.analyzeMri({ patientId: id });
       setAiMessage(res.data);
+      fetchPatientData();
+      fetchTimeline();
     } catch (err) {
       console.error(err);
+      setAiMessage({
+        status: 'error',
+        message: err.response?.data?.message || 'Failed to analyze MRI scan.'
+      });
+    } finally {
+      setTestingAi(false);
     }
   };
 
@@ -332,14 +343,28 @@ const PatientDetails = () => {
                 <div className="border-t border-slate-200 pt-4">
                   <button
                     onClick={handleTestAi}
-                    className="w-full bg-slate-800 hover:bg-slate-700 text-white py-2 rounded-xl text-xs font-semibold transition"
+                    disabled={testingAi}
+                    className="w-full bg-slate-800 hover:bg-slate-700 disabled:bg-slate-300 text-white py-2 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-1"
                   >
-                    Test Future AI Interface
+                    {testingAi ? (
+                      <>
+                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent mr-1"></span>
+                        <span>Analyzing Scan...</span>
+                      </>
+                    ) : (
+                      <span>Run AI Analysis on Latest</span>
+                    )}
                   </button>
                   {aiMessage && (
-                    <div className="mt-3 p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-[11px] text-indigo-700 space-y-1">
+                    <div className={`mt-3 p-3 rounded-xl text-[11px] space-y-1 ${
+                      aiMessage.status === 'error'
+                        ? 'bg-rose-50 border border-rose-100 text-rose-700'
+                        : 'bg-indigo-50 border border-indigo-100 text-indigo-700'
+                    }`}>
                       <p><strong>Status:</strong> {aiMessage.status}</p>
-                      <p><strong>Message:</strong> {aiMessage.message}</p>
+                      {aiMessage.prediction && <p><strong>Prediction:</strong> {aiMessage.prediction}</p>}
+                      {aiMessage.confidence && <p><strong>Confidence:</strong> {aiMessage.confidence}%</p>}
+                      {aiMessage.message && <p><strong>Message:</strong> {aiMessage.message}</p>}
                     </div>
                   )}
                 </div>
@@ -358,7 +383,7 @@ const PatientDetails = () => {
                       <div key={m._id} className="p-4 border border-slate-150 rounded-xl flex items-center justify-between hover:bg-slate-50/50 transition">
                         <div className="space-y-1 overflow-hidden pr-4">
                           <div className="flex items-center space-x-2">
-                            <span className="font-mono bg-slate-100 border border-slate-200 text-slate-650 px-2 py-0.5 rounded text-[10px] font-bold">
+                            <span className="font-mono bg-slate-100 border border-slate-200 text-slate-655 px-2 py-0.5 rounded text-[10px] font-bold">
                               {m.mriId || 'Pending ID'}
                             </span>
                             <span className="font-semibold text-slate-800 text-sm truncate">
@@ -369,17 +394,26 @@ const PatientDetails = () => {
                             Uploaded on {new Date(m.createdAt).toLocaleDateString()}
                           </span>
                           
-                          {/* Alert warnings for placeholders */}
-                          <div className="mt-2 flex flex-wrap gap-1.5">
+                          {/* Dynamic status badges and classification result */}
+                          <div className="mt-2 flex flex-wrap gap-1.5 items-center">
                             <span className="inline-flex items-center px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-150">
                               <CheckCircle className="h-3 w-3 mr-1" /> Upload Successful
                             </span>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-150">
-                              <Clock className="h-3 w-3 mr-1 animate-pulse" /> Analysis Pending
-                            </span>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200">
-                              Reserved for Future AI Model
-                            </span>
+                            {m.status === 'Completed' && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-150">
+                                <BrainCircuit className="h-3 w-3 mr-1" /> {m.result}
+                              </span>
+                            )}
+                            {m.status === 'Pending' && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-150">
+                                <Clock className="h-3 w-3 mr-1 animate-pulse" /> AI Processing...
+                              </span>
+                            )}
+                            {m.status === 'Error' && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose-50 text-rose-700 text-[10px] font-bold border border-rose-150">
+                                ⚠️ {m.result || 'Analysis Failed'}
+                              </span>
+                            )}
                           </div>
                         </div>
                         
