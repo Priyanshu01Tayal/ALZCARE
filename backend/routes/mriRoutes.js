@@ -8,7 +8,7 @@ const {
 const { protect, restrictTo } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
-router.post('/upload', protect, restrictTo('Doctor'), upload.single('mri'), uploadMri);
+router.post('/upload', protect, restrictTo('Doctor', 'Patient'), upload.single('mri'), uploadMri);
 router.post('/analyze', protect, analyzeMriPlaceholder);
 router.get('/patient/:patientId', protect, getMrisByPatient);
 

@@ -1,7 +1,11 @@
+# pyrefly: ignore [missing-import]
 from fastapi import FastAPI, File, UploadFile, HTTPException
+# pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
+# pyrefly: ignore [missing-import]
 from PIL import Image
+# pyrefly: ignore [missing-import]
 import numpy as np
 import io
 import os
@@ -17,8 +21,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Allow configuring model path through environment variables
-MODEL_PATH = os.getenv("MODEL_PATH", r"d:\4thyear\alzheimer_model_mobilenetv2.h5")
+# Allow configuring model path through environment variables, fallback to local path if exists
+local_model_path = os.path.join(os.path.dirname(__file__), "alzheimer_model_mobilenetv2.h5")
+MODEL_PATH = os.getenv("MODEL_PATH", local_model_path if os.path.exists(local_model_path) else r"d:\4thyear\alzheimer_model_mobilenetv2.h5")
 print(f"Loading model from: {MODEL_PATH}")
 
 try:
@@ -82,5 +87,6 @@ async def predict(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Inference error: {str(e)}")
 
 if __name__ == "__main__":
+    # pyrefly: ignore [missing-import]
     import uvicorn
     uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=False)

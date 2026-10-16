@@ -4,7 +4,8 @@ const GameResultSchema = new mongoose.Schema({
   assignmentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'GameAssignment',
-    required: true
+    required: false,
+    default: null
   },
   patientId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -14,6 +15,10 @@ const GameResultSchema = new mongoose.Schema({
   gameName: {
     type: String,
     required: true
+  },
+  difficulty: {
+    type: String,
+    default: 'Medium'
   },
   completionDate: {
     type: Date,
@@ -30,6 +35,10 @@ const GameResultSchema = new mongoose.Schema({
   timeTaken: {
     type: Number,
     required: true // in seconds
+  },
+  moves: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true

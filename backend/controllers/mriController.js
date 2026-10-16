@@ -7,7 +7,7 @@ const logActivity = require('../utils/activityLogger');
 
 // Helper function to call Python ML service
 const runMriAnalysis = async (mriReport, originalFileName) => {
-  const mlServiceUrl = process.env.ML_SERVICE_URL || 'http://127.0.0.1:8000/predict';
+ const mlServiceUrl = process.env.ML_SERVICE_URL;
 
   try {
     const absoluteFilePath = path.join(__dirname, '..', mriReport.filePath);
@@ -46,15 +46,23 @@ const runMriAnalysis = async (mriReport, originalFileName) => {
   }
 };
 
-// @desc    Upload MRI Report (Doctor only)
+// @desc    Upload MRI Report (Doctor or Patient)
 // @route   POST /api/mri/upload
-// @access  Private/Doctor
+// @access  Private/Doctor or Patient
 const uploadMri = async (req, res) => {
-  const { patientId } = req.body;
+  let patientId = req.body.patientId;
 
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'Please upload an MRI file' });
+    }
+
+    if (req.role === 'Patient') {
+      patientId = req.user._id;
+    }
+
+    if (!patientId) {
+      return res.status(400).json({ message: 'Patient ID is required' });
     }
 
     const patient = await Patient.findById(patientId);
@@ -62,13 +70,17 @@ const uploadMri = async (req, res) => {
       return res.status(404).json({ message: 'Patient not found' });
     }
 
-    if (patient.doctorId.toString() !== req.user._id.toString()) {
+    if (req.role === 'Doctor' && patient.doctorId.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Patient is not assigned to you' });
+    }
+
+    if (req.role === 'Patient' && patient._id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to upload MRI for this patient' });
     }
 
     const mriReport = await MriReport.create({
       patientId,
-      doctorId: req.user._id,
+      doctorId: patient.doctorId,
       filePath: `/uploads/${req.file.filename}`,
       fileName: req.file.originalname,
       status: 'Pending',
@@ -78,9 +90,7 @@ const uploadMri = async (req, res) => {
     // Fetch the saved MRI to ensure fields from pre-save hooks are ready
     const savedMri = await MriReport.findById(mriReport._id);
 
-    // Call ML service asynchronously to not block the response, or synchronously if we want to return results immediately.
-    // The requirement says: "Return prediction + confidence -> Display result in React". 
-    // If we run it inline and return the completed report, it makes displaying results immediate.
+    // Call ML service
     let mlError = null;
     try {
       await runMriAnalysis(savedMri, req.file.originalname);
@@ -91,18 +101,33 @@ const uploadMri = async (req, res) => {
     // Refresh report details from DB
     const finalMriReport = await MriReport.findById(mriReport._id);
 
-    await Notification.create({
-      userId: patientId,
-      userType: 'Patient',
-      message: `Dr. ${req.user.name} uploaded a new MRI report: ${req.file.originalname}. Analysis: ${finalMriReport.result}`,
-    });
+    if (req.role === 'Doctor') {
+      await Notification.create({
+        userId: patientId,
+        userType: 'Patient',
+        message: `Dr. ${req.user.name} uploaded a new MRI report: ${req.file.originalname}. Analysis: ${finalMriReport.result}`,
+      });
 
-    await logActivity(
-      req.user._id,
-      'Doctor',
-      'MRI Uploaded',
-      `Dr. ${req.user.name} uploaded MRI scan "${req.file.originalname}" (${finalMriReport.mriId || 'MRI-XXXX'}) for Patient ${patient.name}. Classification: ${finalMriReport.result}`
-    );
+      await logActivity(
+        req.user._id,
+        'Doctor',
+        'MRI Uploaded',
+        `Dr. ${req.user.name} uploaded MRI scan "${req.file.originalname}" (${finalMriReport.mriId || 'MRI-XXXX'}) for Patient ${patient.name}. Classification: ${finalMriReport.result}`
+      );
+    } else {
+      await Notification.create({
+        userId: patient.doctorId,
+        userType: 'Doctor',
+        message: `Patient ${req.user.name} uploaded a new MRI scan: ${req.file.originalname}. AI Prediction: ${finalMriReport.result}`,
+      });
+
+      await logActivity(
+        req.user._id,
+        'Patient',
+        'MRI Uploaded',
+        `Patient ${req.user.name} uploaded MRI scan "${req.file.originalname}" (${finalMriReport.mriId || 'MRI-XXXX'}). AI Classification: ${finalMriReport.result}`
+      );
+    }
 
     res.status(201).json(finalMriReport);
   } catch (error) {

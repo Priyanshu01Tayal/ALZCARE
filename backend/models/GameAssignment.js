@@ -29,6 +29,23 @@ const gameAssignmentSchema = mongoose.Schema(
     dueDate: {
       type: Date,
     },
+    frequency: {
+      type: String,
+      enum: ['Daily', 'Twice a week', 'Weekly', 'Once'],
+      default: 'Daily',
+    },
+    repetitions: {
+      type: Number,
+      default: 1,
+    },
+    startDate: {
+      type: Date,
+      default: Date.now,
+    },
+    notes: {
+      type: String,
+      default: '',
+    },
     assignedAt: {
       type: Date,
       default: Date.now,

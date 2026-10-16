@@ -116,6 +116,10 @@ const loginUser = async (req, res) => {
 
       await logActivity(user._id, role, 'User Logged In', `${role} ${user.name} logged in`);
 
+      if (role === 'Patient') {
+        await Patient.findByIdAndUpdate(user._id, { $set: { lastActive: new Date() } });
+      }
+
       res.json({
         _id: user._id,
         name: user.name,

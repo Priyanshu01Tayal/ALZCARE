@@ -5,6 +5,8 @@ const MriReport = require('../models/MriReport');
 const GameAssignment = require('../models/GameAssignment');
 const Appointment = require('../models/Appointment');
 const Notification = require('../models/Notification');
+const GameResult = require('../models/GameResult');
+const ActivityLog = require('../models/ActivityLog');
 const logActivity = require('../utils/activityLogger');
 
 // @desc    Get all patients assigned to doctor
@@ -43,6 +45,25 @@ const getPatientById = async (req, res) => {
     const mris = await MriReport.find({ patientId: patient._id }).sort({ createdAt: -1 });
     const games = await GameAssignment.find({ patientId: patient._id }).sort({ assignedAt: -1 });
     const appointments = await Appointment.find({ patientId: patient._id }).sort({ date: 1 });
+    const gameResults = await GameResult.find({ patientId: patient._id }).sort({ completionDate: -1 });
+    const recentActivity = await ActivityLog.find({ userId: patient._id }).sort({ createdAt: -1 }).limit(10);
+
+    const latestGame = gameResults[0] || null;
+    const mobileActivity = {
+      lastActive: patient.lastActive || patient.updatedAt,
+      lastGame: latestGame ? {
+        gameName: latestGame.gameName,
+        score: latestGame.score,
+        accuracy: latestGame.accuracy,
+        timeTaken: latestGame.timeTaken,
+        completed: true,
+        completionDate: latestGame.completionDate,
+      } : null,
+      score: latestGame ? latestGame.score : 0,
+      attempts: gameResults.length,
+      completedCount: games.filter((g) => g.status === 'Completed').length,
+      activeAssignmentsCount: games.filter((g) => g.status === 'Assigned').length,
+    };
 
     res.json({
       patient,
@@ -50,7 +71,10 @@ const getPatientById = async (req, res) => {
       prescriptions,
       mris,
       games,
+      gameResults,
       appointments,
+      mobileActivity,
+      recentActivity,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -79,6 +103,9 @@ const addPatient = async (req, res) => {
       age,
       gender,
       medicalHistory,
+      phone: req.body.phone || '',
+      address: req.body.address || '',
+      emergencyContact: req.body.emergencyContact || { name: '', phone: '', relation: '' },
       doctorId: req.user._id,
     });
 
@@ -135,6 +162,9 @@ const updatePatient = async (req, res) => {
     patient.age = req.body.age || patient.age;
     patient.gender = req.body.gender || patient.gender;
     patient.medicalHistory = req.body.medicalHistory !== undefined ? req.body.medicalHistory : patient.medicalHistory;
+    if (req.body.phone !== undefined) patient.phone = req.body.phone;
+    if (req.body.address !== undefined) patient.address = req.body.address;
+    if (req.body.emergencyContact !== undefined) patient.emergencyContact = req.body.emergencyContact;
 
     // Only update email if it doesn't clash
     if (req.body.email && req.body.email !== patient.email) {
@@ -211,10 +241,103 @@ const deletePatient = async (req, res) => {
   }
 };
 
+// @desc    Get current logged in patient profile with doctor, games, appointments
+// @route   GET /api/patients/me
+// @access  Private/Patient
+const getPatientMe = async (req, res) => {
+  try {
+    if (req.role !== 'Patient') {
+      return res.status(403).json({ message: 'Only patients can access their patient profile' });
+    }
+
+    const patient = await Patient.findById(req.user._id).select('-password');
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found' });
+    }
+
+    const doctor = await Doctor.findById(patient.doctorId).select('name email specialization isActive');
+    const prescriptions = await Prescription.find({ patientId: patient._id }).sort({ date: -1 });
+    const games = await GameAssignment.find({ patientId: patient._id }).sort({ createdAt: -1 });
+    const appointments = await Appointment.find({ patientId: patient._id }).sort({ date: 1 });
+
+    res.json({
+      patient,
+      doctor,
+      prescriptions,
+      games,
+      appointments,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Update current patient profile (Patient only)
+// @route   PUT /api/patients/me
+// @access  Private/Patient
+const updatePatientMe = async (req, res) => {
+  try {
+    if (req.role !== 'Patient') {
+      return res.status(403).json({ message: 'Only patients can update their patient profile' });
+    }
+
+    const patient = await Patient.findById(req.user._id);
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found' });
+    }
+
+    if (req.body.name) patient.name = req.body.name;
+    if (req.body.age) patient.age = req.body.age;
+    if (req.body.gender) patient.gender = req.body.gender;
+    if (req.body.medicalHistory !== undefined) patient.medicalHistory = req.body.medicalHistory;
+    if (req.body.phone !== undefined) patient.phone = req.body.phone;
+    if (req.body.address !== undefined) patient.address = req.body.address;
+    if (req.body.emergencyContact !== undefined) patient.emergencyContact = req.body.emergencyContact;
+    patient.lastActive = new Date();
+
+    const updated = await patient.save();
+
+    await logActivity(
+      req.user._id,
+      'Patient',
+      'Profile Updated',
+      `Patient ${updated.name} updated personal contact details`
+    );
+
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get doctor information for current patient
+// @route   GET /api/patients/me/doctor
+// @access  Private/Patient
+const getPatientDoctor = async (req, res) => {
+  try {
+    if (req.role !== 'Patient') {
+      return res.status(403).json({ message: 'Only patients can access their doctor profile' });
+    }
+
+    const doctor = await Doctor.findById(req.user.doctorId).select('name email specialization isActive createdAt');
+    if (!doctor) {
+      return res.status(404).json({ message: 'Assigned doctor not found' });
+    }
+
+    res.json(doctor);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getPatients,
   getPatientById,
   addPatient,
   updatePatient,
   deletePatient,
+  getPatientMe,
+  updatePatientMe,
+  getPatientDoctor,
 };
+

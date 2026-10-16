@@ -30,6 +30,7 @@ app.use('/api/games', require('./routes/gameRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/timeline', require('./routes/timelineRoutes'));
+app.use('/api/doctors', require('./routes/doctorRoutes'));
 
 
 

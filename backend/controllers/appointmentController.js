@@ -11,7 +11,12 @@ const getAppointments = async (req, res) => {
   try {
     let appointments;
     if (req.role === 'Doctor') {
-      appointments = await Appointment.find({ doctorId: req.user._id })
+      const filter = { doctorId: req.user._id };
+      const targetPatientId = req.query.patientId || req.params.patientId;
+      if (targetPatientId) {
+        filter.patientId = targetPatientId;
+      }
+      appointments = await Appointment.find(filter)
         .populate('patientId', 'name email age gender patientId')
         .sort({ date: 1, timeSlot: 1 });
     } else {
@@ -29,7 +34,7 @@ const getAppointments = async (req, res) => {
 // @route   POST /api/appointments
 // @access  Private
 const bookAppointment = async (req, res) => {
-  const { patientId, date, timeSlot, reason } = req.body;
+  const { patientId, date, timeSlot, reason, notes } = req.body;
 
   try {
     let pId, dId;
@@ -53,6 +58,7 @@ const bookAppointment = async (req, res) => {
       date,
       timeSlot,
       reason,
+      notes: notes || '',
     });
 
     const targetPatient = await Patient.findById(pId);
@@ -71,6 +77,8 @@ const bookAppointment = async (req, res) => {
         'Appointment Booked',
         `Patient ${req.user.name} (${targetPatient.patientId}) booked a checkup for ${new Date(date).toLocaleDateString()} with Dr. ${targetDoctor.name}`
       );
+
+      await Patient.findByIdAndUpdate(req.user._id, { $set: { lastActive: new Date() } });
     } else {
       await Notification.create({
         userId: pId,
@@ -151,6 +159,67 @@ const updateAppointmentStatus = async (req, res) => {
         'Appointment Cancelled',
         `Patient ${req.user.name} (${targetPatient.patientId}) marked appointment on ${new Date(appointment.date).toLocaleDateString()} as ${status.toUpperCase()}`
       );
+
+      await Patient.findByIdAndUpdate(req.user._id, { $set: { lastActive: new Date() } });
+    }
+
+    res.json(appointment);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Update appointment details (reschedule, notes, timeSlot)
+// @route   PUT /api/appointments/:id
+// @access  Private
+const updateAppointment = async (req, res) => {
+  try {
+    const appointment = await Appointment.findById(req.params.id);
+
+    if (!appointment) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    if (req.role === 'Doctor' && appointment.doctorId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to modify this appointment' });
+    }
+    if (req.role === 'Patient' && appointment.patientId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to modify this appointment' });
+    }
+
+    const { date, timeSlot, reason, notes, status } = req.body;
+    if (date) appointment.date = date;
+    if (timeSlot) appointment.timeSlot = timeSlot;
+    if (reason) appointment.reason = reason;
+    if (notes !== undefined) appointment.notes = notes;
+    if (status) {
+      if (['Scheduled', 'Completed', 'Cancelled'].includes(status)) {
+        if (status === 'Completed' && req.role !== 'Doctor') {
+          return res.status(403).json({ message: 'Only doctors can mark appointments as completed' });
+        }
+        appointment.status = status;
+      }
+    }
+
+    await appointment.save();
+
+    const targetPatient = await Patient.findById(appointment.patientId);
+
+    if (req.role === 'Doctor') {
+      await Notification.create({
+        userId: appointment.patientId,
+        userType: 'Patient',
+        message: `Your appointment has been updated by Dr. ${req.user.name}. Date: ${new Date(appointment.date).toLocaleDateString()}, Time: ${appointment.timeSlot}.`,
+      });
+
+      await logActivity(
+        req.user._id,
+        'Doctor',
+        'Appointment Updated',
+        `Dr. ${req.user.name} updated appointment for Patient ${targetPatient?.name || 'Patient'} on ${new Date(appointment.date).toLocaleDateString()}`
+      );
+    } else {
+      await Patient.findByIdAndUpdate(req.user._id, { $set: { lastActive: new Date() } });
     }
 
     res.json(appointment);
@@ -162,5 +231,6 @@ const updateAppointmentStatus = async (req, res) => {
 module.exports = {
   getAppointments,
   bookAppointment,
+  updateAppointment,
   updateAppointmentStatus,
 };
