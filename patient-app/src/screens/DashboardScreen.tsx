@@ -341,6 +341,29 @@ export const DashboardScreen: React.FC = () => {
           />
         </Card>
 
+        {/* Prescribed Medications */}
+        <Text style={styles.sectionTitle}>PRESCRIBED MEDICATIONS</Text>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('Medications')}
+          style={{ marginBottom: Spacing.lg }}
+        >
+          <Card style={styles.medBannerCard}>
+            <View style={styles.medBannerRow}>
+              <View style={styles.medBannerIcon}>
+                <Ionicons name="medkit" size={22} color={Colors.primaryLight} />
+              </View>
+              <View style={{ flex: 1, marginLeft: Spacing.md }}>
+                <Text style={styles.medBannerTitle}>Treatment &amp; Prescriptions</Text>
+                <Text style={styles.medBannerSubtitle}>
+                  View medications prescribed by Dr. {doctorInfo?.name || 'your physician'}, dosage instructions, and active treatment schedules.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
+            </View>
+          </Card>
+        </TouchableOpacity>
+
         {/* Recent Game Activity */}
         {recentScores.length > 0 && (
           <>
@@ -688,5 +711,35 @@ const styles = StyleSheet.create({
   recentAccText: {
     fontSize: Typography.caption,
     color: Colors.emerald,
+  },
+  medBannerCard: {
+    backgroundColor: Colors.cardSecondary,
+    borderWidth: 1.5,
+    borderColor: 'rgba(13, 148, 136, 0.3)',
+    borderRadius: 18,
+    padding: Spacing.md,
+  },
+  medBannerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  medBannerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(13, 148, 136, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  medBannerTitle: {
+    fontSize: Typography.titleSmall,
+    fontWeight: Typography.bold,
+    color: Colors.textPrimary,
+  },
+  medBannerSubtitle: {
+    fontSize: Typography.caption + 1,
+    color: Colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 16,
   },
 });

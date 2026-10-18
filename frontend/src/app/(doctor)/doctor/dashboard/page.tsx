@@ -99,39 +99,50 @@ export default function DoctorDashboard() {
   ];
 
   return (
-    <div className="space-y-8 bg-slate-950 text-slate-100 pb-12">
+    <div className="space-y-8 bg-slate-950 text-slate-100 pb-16 font-sans">
       {/* Welcome banner */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-slate-900 via-slate-900 to-clinical-950/40 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden border border-white/10"
+        className="bg-gradient-to-r from-slate-900 via-slate-900 to-clinical-950/40 rounded-2xl p-8 lg:p-10 text-white shadow-xl relative overflow-hidden border border-slate-800/80"
       >
-        <div className="absolute top-0 right-0 w-64 h-64 bg-clinical-600/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="relative z-10 space-y-2">
-          <span className="text-[10px] font-bold text-clinical-400 uppercase tracking-widest">Medical Control Centre</span>
-          <h1 className="text-3xl font-extrabold tracking-tight text-white">Welcome back, Dr. {user?.name || 'Practitioner'}</h1>
-          <p className="text-xs text-slate-400 max-w-xl">
-            Monitor cognitive progress logs, evaluate patient MRI scans, dispatch cognitive exercise training, and adjust appointment lists.
+        <div className="absolute top-0 right-0 w-80 h-80 bg-clinical-600/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="relative z-10 space-y-3">
+          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-clinical-500/10 border border-clinical-500/20 text-clinical-400 text-xs font-semibold tracking-wide">
+            <span className="h-1.5 w-1.5 rounded-full bg-clinical-400 animate-pulse"></span>
+            <span>Clinical Control Center</span>
+          </div>
+          <h1 className="text-3xl lg:text-4xl font-extrabold tracking-tight text-white">
+            Welcome back, Dr. {user?.name || 'Practitioner'}
+          </h1>
+          <p className="text-sm lg:text-base text-slate-300 max-w-2xl leading-relaxed">
+            Monitor patient cognitive exercise trajectories, review diagnostic MRI scans, prescribe neuro-rehabilitation exercises, and manage clinical schedules.
           </p>
         </div>
       </motion.div>
 
       {/* Quick shortcuts bar */}
-      <div className="flex justify-end space-x-3">
-        <Link
-          href="/patients"
-          className="flex items-center space-x-2 bg-gradient-to-r from-clinical-600 to-clinical-550 hover:from-clinical-550 hover:to-clinical-450 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-lg shadow-clinical-600/10 transition-all duration-150"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Register New Patient</span>
-        </Link>
-        <Link
-          href="/doctor/appointments"
-          className="flex items-center space-x-2 bg-slate-900 border border-white/10 text-slate-350 hover:bg-slate-850 px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-md"
-        >
-          <Calendar className="h-4 w-4 text-slate-500" />
-          <span>Clinic Schedules</span>
-        </Link>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-bold text-white tracking-tight">Key Clinical Indicators</h2>
+          <p className="text-sm text-slate-400 mt-0.5">High-level overview across your assigned patient roster</p>
+        </div>
+        <div className="flex items-center space-x-3">
+          <Link
+            href="/patients"
+            className="flex items-center space-x-2 bg-gradient-to-r from-clinical-600 to-teal-600 hover:from-clinical-550 hover:to-teal-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-clinical-600/20 transition-all cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Register New Patient</span>
+          </Link>
+          <Link
+            href="/doctor/appointments"
+            className="flex items-center space-x-2 bg-slate-900 border border-slate-800 text-slate-200 hover:bg-slate-800 px-5 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm cursor-pointer"
+          >
+            <Calendar className="h-4 w-4 text-slate-400" />
+            <span>Clinic Schedule</span>
+          </Link>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -145,13 +156,13 @@ export default function DoctorDashboard() {
             >
               <Link
                 href={card.link}
-                className="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl hover:shadow-2xl hover:border-white/15 transition-all duration-200 flex items-center justify-between"
+                className="bg-slate-900/70 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-6 shadow-xl hover:shadow-2xl hover:border-slate-700 transition-all duration-200 flex items-center justify-between group"
               >
-                <div className="space-y-1">
-                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{card.title}</span>
-                  <p className="text-3xl font-extrabold text-white">{card.value}</p>
+                <div className="space-y-1.5">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">{card.title}</span>
+                  <p className="text-3xl lg:text-4xl font-extrabold text-white tracking-tight">{card.value}</p>
                 </div>
-                <div className={`p-4 rounded-xl shrink-0 ${card.bg} ${card.color}`}>
+                <div className={`p-4 rounded-xl shrink-0 ${card.bg} ${card.color} transition-transform group-hover:scale-105`}>
                   <Icon className="h-6 w-6" />
                 </div>
               </Link>
@@ -164,62 +175,62 @@ export default function DoctorDashboard() {
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl overflow-hidden"
+        className="bg-slate-900/70 backdrop-blur-xl border border-slate-800/80 rounded-2xl shadow-xl overflow-hidden"
       >
-        <div className="p-6 border-b border-white/5 flex items-center justify-between">
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
           <div className="space-y-1">
-            <h3 className="font-bold text-white text-xs uppercase tracking-wider">Scheduled Clinic Bookings</h3>
-            <p className="text-[10px] text-slate-500">Manage and update active appointment lists</p>
+            <h3 className="font-bold text-white text-base tracking-tight">Scheduled Clinic Bookings</h3>
+            <p className="text-sm text-slate-400">Upcoming consultations and medical checkups</p>
           </div>
           <Link
             href="/doctor/appointments"
-            className="text-xs font-bold text-clinical-400 hover:text-clinical-300 flex items-center space-x-1"
+            className="text-sm font-semibold text-clinical-400 hover:text-clinical-300 flex items-center space-x-1.5 transition"
           >
-            <span>All Bookings</span>
-            <ArrowRight className="h-3 w-3" />
+            <span>View All Bookings</span>
+            <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
 
         <div className="overflow-x-auto">
           {upcomingAppointments.length === 0 ? (
-            <div className="p-12 text-center text-slate-500 text-xs flex flex-col items-center justify-center space-y-3">
+            <div className="p-12 text-center text-slate-400 text-sm flex flex-col items-center justify-center space-y-3">
               <Clock className="h-8 w-8 text-slate-600 animate-pulse" />
-              <span>No clinic slots scheduled for today.</span>
+              <span>No upcoming consultations scheduled for today.</span>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-left border-collapse text-sm">
               <thead>
-                <tr className="bg-slate-950/60 text-slate-400 font-bold uppercase tracking-wider border-b border-white/5 text-[10px]">
-                  <th className="p-4 pl-6">Patient Name</th>
-                  <th className="p-4">Date</th>
-                  <th className="p-4">Time Slot</th>
-                  <th className="p-4">Reason</th>
-                  <th className="p-4 pr-6 text-right">Actions</th>
+                <tr className="bg-slate-950/80 text-slate-400 font-semibold uppercase tracking-wider border-b border-slate-800 text-xs">
+                  <th className="py-4 px-6">Patient Name</th>
+                  <th className="py-4 px-4">Date</th>
+                  <th className="py-4 px-4">Time Slot</th>
+                  <th className="py-4 px-4">Reason</th>
+                  <th className="py-4 px-6 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 text-slate-350 bg-slate-900/20">
+              <tbody className="divide-y divide-slate-800/60 text-slate-200 bg-slate-900/20">
                 {upcomingAppointments.slice(0, 5).map((a: any) => (
-                  <tr key={a._id} className="hover:bg-white/5 transition">
-                    <td className="p-4 pl-6 font-bold text-white">
+                  <tr key={a._id} className="hover:bg-slate-800/40 transition">
+                    <td className="py-4 px-6 font-semibold text-white">
                       <Link href={`/patients/${a.patientId?._id}`} className="hover:text-clinical-400 hover:underline">
-                        {a.patientId?.name || 'Deleted Patient'}
+                        {a.patientId?.name || 'Patient'}
                       </Link>
                     </td>
-                    <td className="p-4">{new Date(a.date).toLocaleDateString()}</td>
-                    <td className="p-4 font-semibold text-slate-400">{a.timeSlot}</td>
-                    <td className="p-4 text-slate-450">{a.reason || 'Routine checkup'}</td>
-                    <td className="p-4 pr-6 text-right flex justify-end space-x-2">
+                    <td className="py-4 px-4 text-slate-300">{new Date(a.date).toLocaleDateString()}</td>
+                    <td className="py-4 px-4 font-medium text-slate-300 font-mono">{a.timeSlot}</td>
+                    <td className="py-4 px-4 text-slate-400">{a.reason || 'Routine checkup'}</td>
+                    <td className="py-4 px-6 text-right flex justify-end space-x-2">
                       <button
                         onClick={() => handleStatusUpdate(a._id, 'Completed')}
                         disabled={updateStatusMutation.isPending}
-                        className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-lg font-bold border border-emerald-500/20 transition text-[11px]"
+                        className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-3.5 py-1.5 rounded-lg font-semibold border border-emerald-500/20 transition text-xs cursor-pointer"
                       >
                         Complete
                       </button>
                       <button
                         onClick={() => handleStatusUpdate(a._id, 'Cancelled')}
                         disabled={updateStatusMutation.isPending}
-                        className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-3 py-1.5 rounded-lg font-bold border border-rose-500/20 transition text-[11px]"
+                        className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 px-3.5 py-1.5 rounded-lg font-semibold border border-rose-500/20 transition text-xs cursor-pointer"
                       >
                         Cancel
                       </button>
@@ -236,66 +247,73 @@ export default function DoctorDashboard() {
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-slate-900/40 backdrop-blur-md border border-clinical-500/20 rounded-2xl shadow-xl overflow-hidden"
+        className="bg-slate-900/70 backdrop-blur-xl border border-clinical-500/30 rounded-2xl shadow-xl overflow-hidden"
       >
-        <div className="p-6 border-b border-white/5 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-clinical-500/10 border border-clinical-500/20 rounded-lg text-clinical-400">
-              <Smartphone className="h-4 w-4" />
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+          <div className="flex items-center space-x-3.5">
+            <div className="p-2.5 bg-clinical-500/10 border border-clinical-500/20 rounded-xl text-clinical-400">
+              <Smartphone className="h-5 w-5" />
             </div>
             <div>
-              <div className="flex items-center space-x-2">
-                <h3 className="font-bold text-white text-xs uppercase tracking-wider">Patient Mobile Exercises Stream</h3>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-450 mr-1 animate-pulse"></span>
+              <div className="flex items-center space-x-2.5">
+                <h3 className="font-bold text-white text-base tracking-tight">Patient Mobile Exercises Stream</h3>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
                   Live Sync
                 </span>
               </div>
-              <p className="text-[10px] text-slate-500">Live cognitive exercise results submitted from the mobile app</p>
+              <p className="text-sm text-slate-400 mt-0.5">Real-time cognitive scores submitted by patients from the mobile app</p>
             </div>
           </div>
+          <Link
+            href="/doctor/analytics"
+            className="text-sm font-semibold text-clinical-400 hover:text-clinical-300 flex items-center space-x-1.5 transition"
+          >
+            <span>Deep Analytics</span>
+            <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
 
         <div className="overflow-x-auto">
           {recentMobileActivity.length === 0 ? (
-            <div className="p-12 text-center text-slate-500 text-xs flex flex-col items-center justify-center space-y-3">
+            <div className="p-12 text-center text-slate-400 text-sm flex flex-col items-center justify-center space-y-3">
               <Activity className="h-8 w-8 text-slate-600 animate-pulse" />
               <span>No mobile exercise sessions submitted yet.</span>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-left border-collapse text-sm">
               <thead>
-                <tr className="bg-slate-950/60 text-slate-400 font-bold uppercase tracking-wider border-b border-white/5 text-[10px]">
-                  <th className="p-4 pl-6">Patient</th>
-                  <th className="p-4">Game Exercise</th>
-                  <th className="p-4">Score</th>
-                  <th className="p-4">Accuracy</th>
-                  <th className="p-4">Duration</th>
-                  <th className="p-4">Completion Date</th>
-                  <th className="p-4 pr-6 text-right">Profile</th>
+                <tr className="bg-slate-950/80 text-slate-400 font-semibold uppercase tracking-wider border-b border-slate-800 text-xs">
+                  <th className="py-4 px-6">Patient</th>
+                  <th className="py-4 px-4">Cognitive Exercise</th>
+                  <th className="py-4 px-4">Score</th>
+                  <th className="py-4 px-4">Accuracy</th>
+                  <th className="py-4 px-4">Duration</th>
+                  <th className="py-4 px-4">Completion Date</th>
+                  <th className="py-4 px-6 text-right">Profile</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 text-slate-350 bg-slate-900/20">
+              <tbody className="divide-y divide-slate-800/60 text-slate-200 bg-slate-900/20">
                 {recentMobileActivity.map((r: any) => (
-                  <tr key={r._id} className="hover:bg-white/5 transition">
-                    <td className="p-4 pl-6 font-bold text-white">
+                  <tr key={r._id} className="hover:bg-slate-800/40 transition">
+                    <td className="py-4 px-6 font-semibold text-white">
                       <Link href={`/patients/${r.patientId?._id}`} className="hover:text-clinical-400 hover:underline">
                         {r.patientId?.name || 'Patient'}
                       </Link>
-                      <span className="text-[10px] text-slate-500 block">{r.patientId?.patientId}</span>
+                      <span className="text-xs text-slate-400 block font-mono mt-0.5">{r.patientId?.patientId || 'PAT-0001'}</span>
                     </td>
-                    <td className="p-4 font-semibold text-clinical-400">{r.gameName}</td>
-                    <td className="p-4 font-mono font-bold text-emerald-400">{r.score}</td>
-                    <td className="p-4 text-slate-300">{r.accuracy}%</td>
-                    <td className="p-4 text-slate-400">{r.timeTaken}s</td>
-                    <td className="p-4 text-slate-450">{new Date(r.completionDate || r.createdAt).toLocaleDateString()}</td>
-                    <td className="p-4 pr-6 text-right">
+                    <td className="py-4 px-4 font-semibold text-clinical-400">{r.gameName}</td>
+                    <td className="py-4 px-4 font-mono font-bold text-emerald-400 text-base">{r.score}</td>
+                    <td className="py-4 px-4 text-slate-200 font-semibold">{r.accuracy}%</td>
+                    <td className="py-4 px-4 text-slate-300 font-mono">{r.timeTaken}s</td>
+                    <td className="py-4 px-4 text-slate-400 font-mono text-xs">{new Date(r.completionDate || r.createdAt).toLocaleDateString()}</td>
+                    <td className="py-4 px-6 text-right">
                       <Link
                         href={`/patients/${r.patientId?._id}`}
-                        className="inline-flex items-center space-x-1 text-xs font-bold text-clinical-400 hover:text-clinical-300"
+                        className="inline-flex items-center space-x-1.5 text-xs font-semibold text-clinical-400 hover:text-clinical-300"
                       >
                         <span>View Records</span>
-                        <ArrowRight className="h-3 w-3" />
+                        <ArrowRight className="h-3.5 w-3.5" />
                       </Link>
                     </td>
                   </tr>

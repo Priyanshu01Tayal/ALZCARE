@@ -155,6 +155,8 @@ const addPatient = async (req, res) => {
         ...patientObj,
         patient: patientObj,
         initialCredentials: {
+          name: patient.name,
+          patientId: patient.patientId,
           email: patient.email,
           temporaryPassword: rawPassword,
           mustChangePassword: patient.mustChangePassword,
@@ -410,6 +412,25 @@ const changePatientPassword = async (req, res) => {
   }
 };
 
+// @desc    Get prescriptions & medication list for logged in patient
+// @route   GET /api/patients/me/prescriptions
+// @access  Private/Patient
+const getPatientPrescriptions = async (req, res) => {
+  try {
+    if (req.role !== 'Patient') {
+      return res.status(403).json({ message: 'Only patients can view their prescription list' });
+    }
+
+    const prescriptions = await Prescription.find({ patientId: req.user._id })
+      .populate('doctorId', 'name email specialization')
+      .sort({ date: -1 });
+
+    res.json(prescriptions);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getPatients,
   getPatientById,
@@ -420,6 +441,7 @@ module.exports = {
   updatePatientMe,
   getPatientDoctor,
   changePatientPassword,
+  getPatientPrescriptions,
 };
 
 

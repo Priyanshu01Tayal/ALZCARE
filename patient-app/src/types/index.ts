@@ -140,6 +140,27 @@ export interface GameProgressSummary {
   assignments: GameAssignment[];
 }
 
+export interface MedicationItem {
+  _id?: string;
+  name: string;
+  dosage: string;
+  frequency: string;
+  instructions?: string;
+  startDate?: string;
+  endDate?: string;
+  status?: 'Active' | 'Completed' | 'Discontinued';
+}
+
+export interface PrescriptionItem {
+  _id: string;
+  patientId: string;
+  doctorId: string | Doctor;
+  notes?: string;
+  medications: MedicationItem[];
+  date: string;
+  createdAt?: string;
+}
+
 // Navigation Param Lists
 export type RootStackParamList = {
   Splash: undefined;
@@ -152,6 +173,7 @@ export type RootStackParamList = {
   };
   DoctorInfo: undefined;
   Notifications: undefined;
+  Medications: undefined;
 };
 
 export type TabParamList = {

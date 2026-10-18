@@ -241,76 +241,80 @@ export function PatientCognitiveAnalytics({
 
   if (!mounted) {
     return (
-      <div className="p-8 text-center text-slate-500 bg-slate-950/60 rounded-2xl border border-white/5">
-        Loading cognitive performance charts...
+      <div className="p-12 text-center text-slate-400 bg-slate-900/40 rounded-2xl border border-slate-800">
+        Loading cognitive performance graphs...
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-slate-950/50 rounded-2xl border border-white/5 space-y-3">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-clinical-600 border-t-transparent" />
-        <p className="text-xs text-slate-400">Loading patient cognitive telemetry & activity records...</p>
+      <div className="flex flex-col items-center justify-center p-16 bg-slate-900/40 rounded-2xl border border-slate-800 space-y-4">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-clinical-600 border-t-transparent shadow-lg shadow-clinical-600/20" />
+        <p className="text-sm font-medium text-slate-400">Loading patient cognitive telemetry &amp; records...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 font-sans">
       {/* Clinician Advisory Notice */}
-      <div className="bg-slate-900/60 border border-clinical-500/20 rounded-2xl p-4 flex items-start space-x-3 shadow-lg">
-        <AlertCircle className="h-5 w-5 text-clinical-450 shrink-0 mt-0.5" />
-        <div className="text-xs space-y-1">
-          <span className="font-bold text-white tracking-wide block uppercase text-[10px]">
-            Activity & Rehabilitation Performance Analytics (Clinician Review)
+      <div className="bg-slate-900/80 border border-clinical-500/30 rounded-2xl p-5 lg:p-6 flex items-start space-x-4 shadow-xl">
+        <AlertCircle className="h-6 w-6 text-clinical-400 shrink-0 mt-0.5" />
+        <div className="space-y-1.5">
+          <span className="font-bold text-white text-sm tracking-wide block">
+            Clinical Telemetry &amp; Cognitive Rehabilitation Record
           </span>
-          <p className="text-slate-400 leading-relaxed text-[11px]">
-            The scores, accuracy metrics, and reaction times displayed below reflect patient engagement with prescribed cognitive rehabilitation exercises. These metrics provide objective activity trends to assist clinical evaluation and multidisciplinary care planning. 
-            <strong className="text-slate-300"> Cognitive game scores are activity-performance metrics and do not constitute an automated medical diagnosis of Alzheimer's Disease stage.</strong>
+          <p className="text-slate-300 leading-relaxed text-sm">
+            The scores, accuracy rates, and response latencies recorded below reflect patient engagement with prescribed cognitive rehabilitation exercises from the mobile application. These metrics provide objective activity trends to assist clinical evaluation and multidisciplinary care planning. 
+            <strong className="text-white"> Cognitive scores reflect activity performance and do not substitute for formal clinical diagnostic staging.</strong>
           </p>
         </div>
       </div>
 
       {/* Control Header & Filters */}
-      <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 p-5 rounded-2xl space-y-4 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/5">
-          <div className="flex items-center space-x-2">
-            <BrainCircuit className="h-5 w-5 text-clinical-450" />
-            <h3 className="font-bold text-white text-sm">
-              Cognitive Trajectory & Rehabilitation Graphs
-            </h3>
-            {patientName && (
-              <span className="text-xs text-slate-400 font-mono">
-                • {patientName}
-              </span>
-            )}
+      <div className="bg-slate-900/70 backdrop-blur-xl border border-slate-800/80 p-6 lg:p-7 rounded-2xl space-y-5 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-clinical-500/10 border border-clinical-500/20 rounded-xl">
+              <BrainCircuit className="h-6 w-6 text-clinical-400" />
+            </div>
+            <div>
+              <h3 className="font-bold text-white text-lg tracking-tight">
+                Cognitive Performance &amp; Analytics
+              </h3>
+              {patientName && (
+                <p className="text-sm text-slate-400 mt-0.5 font-medium">
+                  Active Patient Record: <span className="text-white font-semibold">{patientName}</span>
+                </p>
+              )}
+            </div>
           </div>
           <button
             onClick={handleManualRefresh}
             disabled={isRefreshing}
-            className="flex items-center space-x-1.5 text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-750 px-3 py-1.5 rounded-xl border border-white/10 transition self-start sm:self-auto cursor-pointer"
+            className="flex items-center space-x-2 text-sm font-semibold text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-750 px-4 py-2.5 rounded-xl border border-slate-700/80 transition-all self-start sm:self-auto cursor-pointer shadow-sm"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>{isRefreshing ? 'Refreshing...' : 'Refresh Records'}</span>
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{isRefreshing ? 'Updating...' : 'Refresh Records'}</span>
           </button>
         </div>
 
         {/* Filter Controls Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
           {/* Game Filter */}
           <div>
-            <label className="block text-[9px] font-bold text-slate-450 uppercase tracking-widest mb-1.5">
-              Filter by Exercise
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              Cognitive Exercise Domain
             </label>
             <select
               value={selectedGame}
               onChange={(e) => setSelectedGame(e.target.value)}
-              className="w-full bg-slate-950/80 border border-white/10 rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-clinical-500"
+              className="w-full bg-slate-950 border border-slate-700/80 rounded-xl py-2.5 px-3.5 text-sm font-medium text-slate-100 focus:outline-none focus:border-clinical-500 shadow-inner"
             >
-              <option value="All">All Cognitive Exercises (Combined)</option>
+              <option value="All">All Exercises (Aggregated)</option>
               <option value="Memory Match">Memory Match (Visual Recall)</option>
-              <option value="Visual Search">Visual Search (Attention & Focus)</option>
+              <option value="Visual Search">Visual Search (Selective Attention)</option>
               <option value="Speed Tap">Speed Tap (Motor Processing Speed)</option>
               <option value="Pattern Sequence">Pattern Sequence (Working Memory)</option>
             </select>
@@ -318,13 +322,13 @@ export function PatientCognitiveAnalytics({
 
           {/* Difficulty Filter */}
           <div>
-            <label className="block text-[9px] font-bold text-slate-450 uppercase tracking-widest mb-1.5">
-              Difficulty Tier
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              Exercise Difficulty
             </label>
             <select
               value={selectedDifficulty}
               onChange={(e) => setSelectedDifficulty(e.target.value)}
-              className="w-full bg-slate-950/80 border border-white/10 rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-clinical-500"
+              className="w-full bg-slate-950 border border-slate-700/80 rounded-xl py-2.5 px-3.5 text-sm font-medium text-slate-100 focus:outline-none focus:border-clinical-500 shadow-inner"
             >
               <option value="All">All Difficulties</option>
               <option value="Easy">Easy</option>
@@ -335,13 +339,13 @@ export function PatientCognitiveAnalytics({
 
           {/* Time Range Filter */}
           <div>
-            <label className="block text-[9px] font-bold text-slate-450 uppercase tracking-widest mb-1.5">
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
               Time Horizon
             </label>
             <select
               value={selectedTimeRange}
               onChange={(e) => setSelectedTimeRange(e.target.value)}
-              className="w-full bg-slate-950/80 border border-white/10 rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-clinical-500"
+              className="w-full bg-slate-950 border border-slate-700/80 rounded-xl py-2.5 px-3.5 text-sm font-medium text-slate-100 focus:outline-none focus:border-clinical-500 shadow-inner"
             >
               <option value="all">All-Time Cumulative</option>
               <option value="7d">Last 7 Days</option>
@@ -353,114 +357,128 @@ export function PatientCognitiveAnalytics({
       </div>
 
       {/* KPI Overview Tiles */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Completed Sessions</span>
-            <Activity className="h-4 w-4 text-clinical-400" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="p-6 bg-slate-900/70 border border-slate-800/80 rounded-2xl shadow-lg">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Completed Sessions</span>
+            <div className="p-2 rounded-lg bg-clinical-500/10 text-clinical-400">
+              <Activity className="h-5 w-5" />
+            </div>
           </div>
-          <strong className="text-2xl font-extrabold text-white block">
+          <strong className="text-3xl lg:text-4xl font-extrabold text-white block tracking-tight">
             {summaryMetrics.totalSessions}
           </strong>
-          <span className="text-[10px] text-slate-400">
-            {summaryMetrics.completedAssignments} doctor assignments done
+          <span className="text-xs text-slate-400 mt-2 block">
+            {summaryMetrics.completedAssignments} prescribed tasks completed
           </span>
         </div>
 
-        <div className="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Average Score</span>
-            <Trophy className="h-4 w-4 text-emerald-400" />
+        <div className="p-6 bg-slate-900/70 border border-slate-800/80 rounded-2xl shadow-lg">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Average Score</span>
+            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+              <Trophy className="h-5 w-5" />
+            </div>
           </div>
-          <strong className="text-2xl font-extrabold text-emerald-400 block">
+          <strong className="text-3xl lg:text-4xl font-extrabold text-emerald-400 block tracking-tight">
             {summaryMetrics.avgScore}
           </strong>
-          <span className="text-[10px] text-slate-400">
-            Peak: <strong className="text-amber-400">{summaryMetrics.bestScore}</strong> pts
+          <span className="text-xs text-slate-400 mt-2 block">
+            Peak Score: <strong className="text-amber-400 font-semibold">{summaryMetrics.bestScore}</strong> pts
           </span>
         </div>
 
-        <div className="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Mean Accuracy</span>
-            <Target className="h-4 w-4 text-blue-400" />
+        <div className="p-6 bg-slate-900/70 border border-slate-800/80 rounded-2xl shadow-lg">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Mean Accuracy</span>
+            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
+              <Target className="h-5 w-5" />
+            </div>
           </div>
-          <strong className="text-2xl font-extrabold text-blue-400 block">
+          <strong className="text-3xl lg:text-4xl font-extrabold text-blue-400 block tracking-tight">
             {summaryMetrics.avgAccuracy}%
           </strong>
-          <span className="text-[10px] text-slate-400">
-            Avg response: {summaryMetrics.avgTime}s
+          <span className="text-xs text-slate-400 mt-2 block">
+            Avg reaction duration: {summaryMetrics.avgTime}s
           </span>
         </div>
 
-        <div className="p-4 bg-slate-900/50 border border-white/5 rounded-2xl">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Last Activity</span>
-            <Clock className="h-4 w-4 text-amber-400" />
+        <div className="p-6 bg-slate-900/70 border border-slate-800/80 rounded-2xl shadow-lg">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Last Activity</span>
+            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
+              <Clock className="h-5 w-5" />
+            </div>
           </div>
-          <strong className="text-sm font-extrabold text-white block truncate pt-1">
+          <strong className="text-lg font-bold text-white block truncate pt-1">
             {summaryMetrics.latestSession?.gameName || 'None'}
           </strong>
-          <span className="text-[10px] text-slate-400 block mt-0.5">
+          <span className="text-xs text-slate-400 block mt-1 font-mono">
             {summaryMetrics.latestSession?.completionDate
-              ? new Date(summaryMetrics.latestSession.completionDate).toLocaleDateString()
-              : 'No sessions yet'}
+              ? new Date(summaryMetrics.latestSession.completionDate).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })
+              : 'No sessions recorded yet'}
           </span>
         </div>
       </div>
 
       {filteredResults.length === 0 ? (
         /* Empty State */
-        <div className="p-12 text-center bg-slate-900/30 border border-white/5 rounded-2xl space-y-3">
-          <BrainCircuit className="h-10 w-10 text-slate-600 mx-auto" />
-          <h4 className="text-sm font-bold text-white">No Cognitive Session Records Match Filters</h4>
-          <p className="text-xs text-slate-400 max-w-md mx-auto">
+        <div className="p-16 text-center bg-slate-900/40 border border-slate-800/80 rounded-2xl space-y-4 shadow-xl">
+          <BrainCircuit className="h-12 w-12 text-slate-600 mx-auto" />
+          <h4 className="text-lg font-bold text-white">No Cognitive Session Records Match Filters</h4>
+          <p className="text-sm text-slate-400 max-w-lg mx-auto leading-relaxed">
             {resultsList.length === 0
-              ? 'This patient has not yet completed any cognitive exercises in the AlzCare mobile app. Once they log in and play an exercise, their scores and accuracy will sync here automatically.'
-              : 'No exercise sessions found matching the selected game, difficulty, or date range filters. Try resetting the filters above.'}
+              ? 'This patient has not yet completed any cognitive exercises in the AlzCare mobile app. Once they log in and complete an exercise, their scores, accuracy, and duration will automatically appear here.'
+              : 'No exercise sessions found matching the selected game, difficulty, or date range filters. Try broadening the filters above.'}
           </p>
         </div>
       ) : (
         /* Charts Grid */
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Chart 1: Cognitive Performance Trend (Line Chart) */}
-          <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 p-5 rounded-2xl shadow-xl space-y-3">
+          <div className="bg-slate-900/70 backdrop-blur-xl border border-slate-800/80 p-6 lg:p-7 rounded-2xl shadow-xl space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
-                  <TrendingUp className="h-4 w-4 text-clinical-400" />
+                <h4 className="text-base font-bold text-white flex items-center space-x-2">
+                  <TrendingUp className="h-5 w-5 text-clinical-400" />
                   <span>Cognitive Score Progression Over Time</span>
                 </h4>
-                <p className="text-[10px] text-slate-400">Sequential points achieved per exercise session</p>
+                <p className="text-sm text-slate-400 mt-1">Sequential points achieved per cognitive exercise session</p>
               </div>
             </div>
 
-            <div className="h-64 w-full pt-2">
+            <div className="h-80 lg:h-96 w-full pt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chronologicalData} margin={{ top: 10, right: 15, left: -10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <LineChart data={chronologicalData} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                   <XAxis
                     dataKey="date"
-                    stroke="#64748b"
-                    fontSize={10}
+                    stroke="#94a3b8"
+                    fontSize={12}
                     tickLine={false}
+                    tickMargin={8}
                   />
                   <YAxis
-                    stroke="#64748b"
-                    fontSize={10}
+                    stroke="#94a3b8"
+                    fontSize={12}
                     tickLine={false}
                     domain={['dataMin - 50', 'dataMax + 50']}
                   />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#0f172a',
-                      borderColor: 'rgba(255,255,255,0.1)',
-                      borderRadius: '12px',
-                      fontSize: '11px',
-                      color: '#f8fafc',
+                      borderColor: 'rgba(255,255,255,0.12)',
+                      borderRadius: '14px',
+                      fontSize: '13px',
+                      color: '#ffffff',
+                      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
                     }}
                     formatter={(value: any, name: any, item: any) => [
-                      `${value} pts (${item.payload.game} - ${item.payload.difficulty})`,
+                      `${value} pts (${item.payload.game} • ${item.payload.difficulty})`,
                       'Score',
                     ]}
                     labelFormatter={(label, items) => {
@@ -473,9 +491,9 @@ export function PatientCognitiveAnalytics({
                     dataKey="score"
                     name="Score"
                     stroke="#0d9488"
-                    strokeWidth={2.5}
-                    dot={{ fill: '#14b8a6', r: 4 }}
-                    activeDot={{ r: 6, fill: '#2dd4bf' }}
+                    strokeWidth={3}
+                    dot={{ fill: '#14b8a6', r: 5 }}
+                    activeDot={{ r: 7, fill: '#2dd4bf' }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -483,103 +501,106 @@ export function PatientCognitiveAnalytics({
           </div>
 
           {/* Chart 2: Daily Activity Frequency (Bar Chart) */}
-          <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 p-5 rounded-2xl shadow-xl space-y-3">
+          <div className="bg-slate-900/70 backdrop-blur-xl border border-slate-800/80 p-6 lg:p-7 rounded-2xl shadow-xl space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
-                  <Calendar className="h-4 w-4 text-blue-400" />
-                  <span>Daily Activity Volume & Completion</span>
+                <h4 className="text-base font-bold text-white flex items-center space-x-2">
+                  <Calendar className="h-5 w-5 text-blue-400" />
+                  <span>Daily Activity Volume &amp; Completion</span>
                 </h4>
-                <p className="text-[10px] text-slate-400">Total exercise sessions completed per active day</p>
+                <p className="text-sm text-slate-400 mt-1">Total exercise sessions completed per active day</p>
               </div>
             </div>
 
-            <div className="h-64 w-full pt-2">
+            <div className="h-80 lg:h-96 w-full pt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dailyActivityData} margin={{ top: 10, right: 15, left: -15, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="date" stroke="#64748b" fontSize={10} tickLine={false} />
-                  <YAxis stroke="#64748b" fontSize={10} tickLine={false} allowDecimals={false} />
+                <BarChart data={dailyActivityData} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                  <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} tickMargin={8} />
+                  <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} allowDecimals={false} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#0f172a',
-                      borderColor: 'rgba(255,255,255,0.1)',
-                      borderRadius: '12px',
-                      fontSize: '11px',
-                      color: '#f8fafc',
+                      borderColor: 'rgba(255,255,255,0.12)',
+                      borderRadius: '14px',
+                      fontSize: '13px',
+                      color: '#ffffff',
+                      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
                     }}
                     formatter={(value: any, name: any, item: any) => [
                       `${value} session(s) (Avg Score: ${item.payload.avgScore})`,
                       'Activity',
                     ]}
                   />
-                  <Bar dataKey="count" name="Sessions" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="count" name="Sessions" fill="#3b82f6" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
           {/* Chart 3: Game Performance Comparison (Bar Chart) */}
-          <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 p-5 rounded-2xl shadow-xl space-y-3">
+          <div className="bg-slate-900/70 backdrop-blur-xl border border-slate-800/80 p-6 lg:p-7 rounded-2xl shadow-xl space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
-                  <Trophy className="h-4 w-4 text-amber-400" />
+                <h4 className="text-base font-bold text-white flex items-center space-x-2">
+                  <Trophy className="h-5 w-5 text-amber-400" />
                   <span>Cross-Activity Performance Comparison</span>
                 </h4>
-                <p className="text-[10px] text-slate-400">Best vs Average scores across cognitive domains</p>
+                <p className="text-sm text-slate-400 mt-1">Peak vs Average points across cognitive domains</p>
               </div>
             </div>
 
-            <div className="h-64 w-full pt-2">
+            <div className="h-80 lg:h-96 w-full pt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={gameComparisonData} margin={{ top: 10, right: 15, left: -10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="game" stroke="#64748b" fontSize={9} tickLine={false} />
-                  <YAxis stroke="#64748b" fontSize={10} tickLine={false} />
+                <BarChart data={gameComparisonData} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                  <XAxis dataKey="game" stroke="#94a3b8" fontSize={11} tickLine={false} tickMargin={8} />
+                  <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#0f172a',
-                      borderColor: 'rgba(255,255,255,0.1)',
-                      borderRadius: '12px',
-                      fontSize: '11px',
-                      color: '#f8fafc',
+                      borderColor: 'rgba(255,255,255,0.12)',
+                      borderRadius: '14px',
+                      fontSize: '13px',
+                      color: '#ffffff',
+                      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
                     }}
                   />
-                  <Legend wrapperStyle={{ fontSize: '10px', paddingTop: '6px' }} />
-                  <Bar dataKey="bestScore" name="Peak Score" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="avgScore" name="Average Score" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <Legend wrapperStyle={{ fontSize: '13px', paddingTop: '10px' }} />
+                  <Bar dataKey="bestScore" name="Peak Score" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="avgScore" name="Average Score" fill="#10b981" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
           {/* Chart 4: Accuracy Trajectory (Line Chart) */}
-          <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 p-5 rounded-2xl shadow-xl space-y-3">
+          <div className="bg-slate-900/70 backdrop-blur-xl border border-slate-800/80 p-6 lg:p-7 rounded-2xl shadow-xl space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
-                  <Target className="h-4 w-4 text-emerald-400" />
+                <h4 className="text-base font-bold text-white flex items-center space-x-2">
+                  <Target className="h-5 w-5 text-emerald-400" />
                   <span>Accuracy Percentage (%) Trend</span>
                 </h4>
-                <p className="text-[10px] text-slate-400">Response accuracy rate over consecutive exercise trials</p>
+                <p className="text-sm text-slate-400 mt-1">Response accuracy rate over consecutive exercise trials</p>
               </div>
             </div>
 
-            <div className="h-64 w-full pt-2">
+            <div className="h-80 lg:h-96 w-full pt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chronologicalData} margin={{ top: 10, right: 15, left: -15, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="date" stroke="#64748b" fontSize={10} tickLine={false} />
-                  <YAxis stroke="#64748b" fontSize={10} tickLine={false} domain={[0, 100]} />
+                <LineChart data={chronologicalData} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                  <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} tickMargin={8} />
+                  <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={[0, 100]} />
                   <ReferenceLine y={100} stroke="rgba(255,255,255,0.15)" strokeDasharray="4 4" />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#0f172a',
-                      borderColor: 'rgba(255,255,255,0.1)',
-                      borderRadius: '12px',
-                      fontSize: '11px',
-                      color: '#f8fafc',
+                      borderColor: 'rgba(255,255,255,0.12)',
+                      borderRadius: '14px',
+                      fontSize: '13px',
+                      color: '#ffffff',
+                      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
                     }}
                     formatter={(val: any) => [`${val}%`, 'Accuracy']}
                   />
@@ -588,9 +609,9 @@ export function PatientCognitiveAnalytics({
                     dataKey="accuracy"
                     name="Accuracy %"
                     stroke="#10b981"
-                    strokeWidth={2.5}
-                    dot={{ fill: '#34d399', r: 4 }}
-                    activeDot={{ r: 6, fill: '#6ee7b7' }}
+                    strokeWidth={3}
+                    dot={{ fill: '#34d399', r: 5 }}
+                    activeDot={{ r: 7, fill: '#6ee7b7' }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -600,51 +621,51 @@ export function PatientCognitiveAnalytics({
       )}
 
       {/* Date-Wise Cognitive History Log Table */}
-      <div className="bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-xl">
-        <div className="p-4 border-b border-white/5 flex items-center justify-between bg-slate-950/40">
+      <div className="bg-slate-900/70 backdrop-blur-xl border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl">
+        <div className="p-5 lg:p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
           <div>
-            <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-              Chronological Activity & Session History
+            <h4 className="text-base font-bold text-white tracking-tight">
+              Chronological Activity &amp; Session History
             </h4>
-            <p className="text-[10px] text-slate-400">Detailed clinical telemetry recorded by patient app</p>
+            <p className="text-sm text-slate-400 mt-0.5">Detailed clinical telemetry recorded by patient mobile app</p>
           </div>
-          <span className="text-[10px] font-bold text-slate-400 bg-slate-800 px-2.5 py-1 rounded-full border border-white/5">
-            {filteredResults.length} session(s)
+          <span className="text-xs font-semibold text-slate-300 bg-slate-800 px-3 py-1.5 rounded-full border border-slate-700">
+            {filteredResults.length} session(s) recorded
           </span>
         </div>
 
         <div className="overflow-x-auto">
           {filteredResults.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 text-xs">
+            <div className="p-12 text-center text-slate-400 text-sm">
               No exercise session records to display.
             </div>
           ) : (
-            <table className="w-full text-left text-xs border-collapse">
+            <table className="w-full text-left text-sm border-collapse">
               <thead>
-                <tr className="bg-slate-950/70 text-slate-400 font-bold uppercase tracking-wider border-b border-white/5 text-[9px]">
-                  <th className="p-3.5 pl-6">Date & Time</th>
-                  <th className="p-3.5">Cognitive Activity</th>
-                  <th className="p-3.5">Difficulty</th>
-                  <th className="p-3.5">Score</th>
-                  <th className="p-3.5">Accuracy</th>
-                  <th className="p-3.5">Time Taken</th>
-                  <th className="p-3.5">Moves / Hits</th>
-                  <th className="p-3.5 pr-6 text-right">Status</th>
+                <tr className="bg-slate-950/80 text-slate-400 font-semibold uppercase tracking-wider border-b border-slate-800 text-xs">
+                  <th className="py-4 px-6">Date &amp; Time</th>
+                  <th className="py-4 px-4">Cognitive Activity</th>
+                  <th className="py-4 px-4">Difficulty</th>
+                  <th className="py-4 px-4">Score</th>
+                  <th className="py-4 px-4">Accuracy</th>
+                  <th className="py-4 px-4">Duration</th>
+                  <th className="py-4 px-4">Moves / Hits</th>
+                  <th className="py-4 px-6 text-right">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 text-slate-300 bg-slate-900/20">
+              <tbody className="divide-y divide-slate-800/60 text-slate-200 bg-slate-900/20">
                 {filteredResults.map((r, i) => {
                   const d = new Date(r.completionDate || r.createdAt || Date.now());
                   return (
-                    <tr key={r._id || i} className="hover:bg-white/5 transition">
-                      <td className="p-3.5 pl-6 font-mono text-[11px] text-slate-400">
+                    <tr key={r._id || i} className="hover:bg-slate-800/40 transition">
+                      <td className="py-4 px-6 font-mono text-xs text-slate-400">
                         {d.toLocaleDateString()} {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </td>
-                      <td className="p-3.5 font-bold text-white">
+                      <td className="py-4 px-4 font-semibold text-white">
                         {r.gameName}
                       </td>
-                      <td className="p-3.5">
-                        <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase border ${
+                      <td className="py-4 px-4">
+                        <span className={`inline-block px-2.5 py-1 rounded-md text-xs font-semibold uppercase border ${
                           r.difficulty === 'Hard'
                             ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
                             : r.difficulty === 'Easy'
@@ -654,21 +675,21 @@ export function PatientCognitiveAnalytics({
                           {r.difficulty || 'Medium'}
                         </span>
                       </td>
-                      <td className="p-3.5 font-extrabold text-teal-400">
+                      <td className="py-4 px-4 font-extrabold text-teal-400 font-mono text-base">
                         {r.score}
                       </td>
-                      <td className="p-3.5 font-bold text-slate-200">
+                      <td className="py-4 px-4 font-bold text-slate-100">
                         {r.accuracy}%
                       </td>
-                      <td className="p-3.5 text-slate-400">
+                      <td className="py-4 px-4 text-slate-300 font-mono">
                         {r.timeTaken}s
                       </td>
-                      <td className="p-3.5 text-slate-400">
-                        {r.moves !== undefined ? r.moves : '--'}
+                      <td className="py-4 px-4 text-slate-400 font-mono">
+                        {r.moves !== undefined ? r.moves : '—'}
                       </td>
-                      <td className="p-3.5 pr-6 text-right">
-                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          <CheckCircle2 className="h-3 w-3 mr-0.5" />
+                      <td className="py-4 px-6 text-right">
+                        <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-0.5" />
                           <span>Recorded</span>
                         </span>
                       </td>

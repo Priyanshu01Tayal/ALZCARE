@@ -1,14 +1,11 @@
 {
   "expo": {
-    "name": "AlzCare Patient",
+    "name": "ALZCARE",
     "slug": "alzcare-patient",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "backgroundColor": "#070B14"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.alzcare.patientapp"
@@ -30,6 +27,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "2786a6ea-5f62-40b1-ba63-62f56333600c"
+      }
+    },
+    "owner": "priyanshutayal3"
   }
 }

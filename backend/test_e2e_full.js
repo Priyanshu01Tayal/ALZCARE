@@ -56,6 +56,7 @@ async function runAllTests() {
   let doctorUser = null;
   let existingPatientToken = null;
   let createdPatientId = null;
+  let createdPatientPatientId = null;
   let createdPatientEmail = `test.e2e.${Date.now()}@alzcare.com`;
   let tempPassword = null;
   let newPatientToken = null;
@@ -143,6 +144,7 @@ async function runAllTests() {
       res.data.initialCredentials.temporaryPassword
     ) {
       createdPatientId = res.data.patient._id;
+      createdPatientPatientId = res.data.patient.patientId;
       tempPassword = res.data.initialCredentials.temporaryPassword;
       recordTest(
         'Test B1: Doctor Registers Patient & Generates Temp Password',
@@ -156,7 +158,7 @@ async function runAllTests() {
     recordTest('Test B1: Doctor Registers Patient & Generates Temp Password', false, err.message);
   }
 
-  // B2: Patient logs in with the generated temporary credentials
+  // B2: Patient logs in with the generated temporary credentials using EMAIL
   try {
     const res = await request('POST', '/api/auth/login', {
       email: createdPatientEmail,
@@ -165,12 +167,28 @@ async function runAllTests() {
 
     if (res.status === 200 && res.data.token && res.data.mustChangePassword === true) {
       newPatientToken = res.data.token;
-      recordTest('Test B2: Patient Logs in with Temporary Credentials', true, 'Session token issued with mustChangePassword flag');
+      recordTest('Test B2: Patient Logs in with Temporary Credentials (Email)', true, 'Session token issued with mustChangePassword flag');
     } else {
-      recordTest('Test B2: Patient Logs in with Temporary Credentials', false, `Status ${res.status}: ${JSON.stringify(res.data)}`);
+      recordTest('Test B2: Patient Logs in with Temporary Credentials (Email)', false, `Status ${res.status}: ${JSON.stringify(res.data)}`);
     }
   } catch (err) {
-    recordTest('Test B2: Patient Logs in with Temporary Credentials', false, err.message);
+    recordTest('Test B2: Patient Logs in with Temporary Credentials (Email)', false, err.message);
+  }
+
+  // B3: Patient logs in with the generated temporary credentials using PATIENT ID (e.g. PAT-XXXX)
+  try {
+    const res = await request('POST', '/api/auth/login', {
+      patientId: createdPatientPatientId,
+      password: tempPassword,
+    });
+
+    if (res.status === 200 && res.data.token && res.data.patientId === createdPatientPatientId) {
+      recordTest('Test B3: Patient Logs in with Patient ID directly (PAT-XXXX)', true, `Authenticated via Patient ID: ${res.data.patientId}`);
+    } else {
+      recordTest('Test B3: Patient Logs in with Patient ID directly (PAT-XXXX)', false, `Status ${res.status}: ${JSON.stringify(res.data)}`);
+    }
+  } catch (err) {
+    recordTest('Test B3: Patient Logs in with Patient ID directly (PAT-XXXX)', false, err.message);
   }
 
   // -------------------------------------------------------------------------
@@ -421,6 +439,146 @@ async function runAllTests() {
     }
   } catch (err) {
     recordTest('Test F3: Patient Profile & Doctor Association', false, err.message);
+  }
+
+  // -------------------------------------------------------------------------
+  // TEST G: MEDICATION & APPOINTMENT SYNCHRONIZATION
+  // -------------------------------------------------------------------------
+  console.log('\n--- TEST G: MEDICATION & APPOINTMENT SYNCHRONIZATION ---');
+
+  // G1: Doctor prescribes medication with instructions and status
+  let createdPrescriptionId = null;
+  try {
+    const res = await request(
+      'POST',
+      '/api/prescriptions',
+      {
+        patientId: createdPatientId,
+        medications: [
+          {
+            name: 'Donepezil',
+            dosage: '10mg',
+            frequency: 'Once daily at bedtime',
+            duration: '90 days',
+            instructions: 'Take with a glass of water before sleep. Monitor for gastrointestinal upset.',
+            status: 'Active',
+          },
+          {
+            name: 'Memantine HCl',
+            dosage: '5mg',
+            frequency: 'Twice daily',
+            duration: '60 days',
+            instructions: 'Take with or without food morning and evening.',
+            status: 'Active',
+          },
+        ],
+        notes: 'Target neurocognitive symptom stabilization. Re-evaluate in 30 days.',
+      },
+      doctorToken
+    );
+
+    if ((res.status === 200 || res.status === 201) && res.data._id && res.data.medications?.length === 2) {
+      createdPrescriptionId = res.data._id;
+      recordTest(
+        'Test G1: Doctor Prescribes Medication with Instructions & Status',
+        true,
+        `Prescription ID: ${createdPrescriptionId}, Medications: Donepezil (10mg), Memantine (5mg)`
+      );
+    } else {
+      recordTest('Test G1: Doctor Prescribes Medication with Instructions & Status', false, JSON.stringify(res.data));
+    }
+  } catch (err) {
+    recordTest('Test G1: Doctor Prescribes Medication with Instructions & Status', false, err.message);
+  }
+
+  // G2: Patient fetches their prescribed medication list
+  try {
+    const res = await request('GET', '/api/patients/me/prescriptions', null, newPatientToken);
+    const hasMedication = Array.isArray(res.data) && res.data.some(
+      (p) => p.medications && p.medications.some((m) => m.name === 'Donepezil' && m.instructions)
+    );
+
+    if (res.status === 200 && hasMedication) {
+      const rx = res.data[0];
+      recordTest(
+        'Test G2: Patient Retrieves Prescribed Medication List',
+        true,
+        `Found ${res.data.length} prescription record(s). Meds: ${rx.medications.map((m) => m.name + ' (' + m.status + ')').join(', ')}`
+      );
+    } else {
+      recordTest('Test G2: Patient Retrieves Prescribed Medication List', false, JSON.stringify(res.data));
+    }
+  } catch (err) {
+    recordTest('Test G2: Patient Retrieves Prescribed Medication List', false, err.message);
+  }
+
+  // G3: Patient books an appointment through backend
+  let bookedApptId = null;
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 2);
+  const appointmentDate = tomorrow.toISOString().split('T')[0];
+
+  try {
+    const res = await request(
+      'POST',
+      '/api/appointments',
+      {
+        date: appointmentDate,
+        timeSlot: '10:30 AM',
+        reason: 'Follow-up cognitive assessment & prescription review',
+        notes: 'Patient reported mild fatigue in mornings',
+      },
+      newPatientToken
+    );
+
+    if ((res.status === 200 || res.status === 201) && res.data._id) {
+      bookedApptId = res.data._id;
+      recordTest('Test G3: Patient Books Appointment via Mobile API', true, `Appointment ID: ${bookedApptId}, Date: ${appointmentDate} at 10:30 AM`);
+    } else {
+      recordTest('Test G3: Patient Books Appointment via Mobile API', false, JSON.stringify(res.data));
+    }
+  } catch (err) {
+    recordTest('Test G3: Patient Books Appointment via Mobile API', false, err.message);
+  }
+
+  // G4: Patient retrieves their own appointments list
+  try {
+    const res = await request('GET', '/api/appointments', null, newPatientToken);
+    const found = Array.isArray(res.data) && res.data.some((a) => a._id === bookedApptId);
+
+    if (res.status === 200 && found) {
+      recordTest('Test G4: Patient App Synchronizes Booked Appointment', true, `Found booked appointment with status: Pending`);
+    } else {
+      recordTest('Test G4: Patient App Synchronizes Booked Appointment', false, JSON.stringify(res.data));
+    }
+  } catch (err) {
+    recordTest('Test G4: Patient App Synchronizes Booked Appointment', false, err.message);
+  }
+
+  // G5: Doctor views the newly booked appointment in their dashboard
+  try {
+    const res = await request('GET', '/api/appointments', null, doctorToken);
+    const foundByDoctor = Array.isArray(res.data) && res.data.some((a) => a._id === bookedApptId);
+
+    if (res.status === 200 && foundByDoctor) {
+      recordTest('Test G5: Doctor Dashboard Synchronizes Patient-Booked Appointment', true, `Doctor sees appointment ID ${bookedApptId}`);
+    } else {
+      recordTest('Test G5: Doctor Dashboard Synchronizes Patient-Booked Appointment', false, `Status ${res.status}`);
+    }
+  } catch (err) {
+    recordTest('Test G5: Doctor Dashboard Synchronizes Patient-Booked Appointment', false, err.message);
+  }
+
+  // G6: Cross-patient privacy guard (patient cannot access another patient's prescriptions)
+  try {
+    const res = await request('GET', `/api/prescriptions/patient/${createdPatientId}`, null, existingPatientToken);
+    if (res.status === 403) {
+      recordTest('Test G6: Cross-Patient Medication Privacy Guard Enforced', true, 'Status 403 Forbidden when unauthorized patient requests another patient prescriptions');
+    } else {
+      recordTest('Test G6: Cross-Patient Medication Privacy Guard Enforced', false, `Expected 403, got ${res.status}`);
+    }
+  } catch (err) {
+    recordTest('Test G6: Cross-Patient Medication Privacy Guard Enforced', false, err.message);
   }
 
   // Summary

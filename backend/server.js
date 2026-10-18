@@ -34,6 +34,15 @@ app.use('/api/doctors', require('./routes/doctorRoutes'));
 
 
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'AlzCare API is healthy and reachable',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Root Endpoint
 app.get('/', (req, res) => {
   res.json({ message: 'AlzCare API is running...' });

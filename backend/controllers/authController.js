@@ -92,14 +92,16 @@ const registerAdmin = async (req, res) => {
 // @route   POST /api/auth/login
 // @access  Public
 const loginUser = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, username, patientId: inputPatientId, password } = req.body;
+  const rawIdentifier = (email || username || inputPatientId || '').trim();
 
   try {
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
+    if (!rawIdentifier || !password) {
+      return res.status(400).json({ message: 'Patient ID or email and password are required' });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = rawIdentifier.toLowerCase();
+    const uppercaseId = rawIdentifier.toUpperCase();
 
     let user = await Admin.findOne({ email: normalizedEmail });
     let role = 'Admin';
@@ -110,7 +112,13 @@ const loginUser = async (req, res) => {
     }
 
     if (!user) {
-      user = await Patient.findOne({ email: normalizedEmail });
+      // Search patient by either email or patientId (e.g. PAT-0001)
+      user = await Patient.findOne({
+        $or: [
+          { email: normalizedEmail },
+          { patientId: uppercaseId }
+        ]
+      });
       role = 'Patient';
     }
 
@@ -135,13 +143,14 @@ const loginUser = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
+        patientId: user.patientId || undefined,
         role,
         status: user.status || 'Active',
         mustChangePassword: user.mustChangePassword || false,
         token: generateToken(user._id, role),
       });
     } else {
-      res.status(401).json({ message: 'Invalid email or password' });
+      res.status(401).json({ message: 'Invalid credentials. Please verify your Patient ID/email and password.' });
     }
   } catch (error) {
     res.status(500).json({ message: error.message });

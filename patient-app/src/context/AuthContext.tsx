@@ -67,10 +67,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (identifier: string, password: string) => {
     try {
-      const cleanEmail = email.trim().toLowerCase();
-      const authRes = await loginApi(cleanEmail, password);
+      const cleanIdentifier = identifier.trim();
+      const authRes = await loginApi(cleanIdentifier, password);
 
       // Verify patient role security rule: Only Patients can access patient mobile app
       if (authRes.role !== 'Patient') {
@@ -100,7 +100,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           _id: authRes._id,
           name: authRes.name,
           email: authRes.email,
-          patientId: 'PAT-XXXX',
+          patientId: authRes.patientId || 'PAT-0001',
+          mustChangePassword: authRes.mustChangePassword || false,
           age: 65,
           gender: 'Other',
           doctorId: '',

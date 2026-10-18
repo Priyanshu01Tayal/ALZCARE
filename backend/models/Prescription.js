@@ -13,6 +13,23 @@ const medicationSchema = mongoose.Schema({
     type: String,
     required: true,
   },
+  instructions: {
+    type: String,
+    default: '',
+  },
+  startDate: {
+    type: Date,
+    default: Date.now,
+  },
+  endDate: {
+    type: Date,
+    default: null,
+  },
+  status: {
+    type: String,
+    enum: ['Active', 'Completed', 'Discontinued'],
+    default: 'Active',
+  },
 });
 
 const prescriptionSchema = mongoose.Schema(

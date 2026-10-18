@@ -309,6 +309,17 @@ export const ProfileScreen: React.FC = () => {
           )}
 
           <TouchableOpacity
+            style={[styles.changePasswordBtn, { marginBottom: 10 }]}
+            onPress={() => navigation.navigate('Medications')}
+          >
+            <View style={styles.changePasswordBtnLeft}>
+              <MaterialCommunityIcons name="pill" size={20} color={theme.colors.primary} />
+              <Text style={styles.changePasswordBtnText}>View Prescribed Medications</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.changePasswordBtn}
             onPress={() => {
               setPasswordError(null);

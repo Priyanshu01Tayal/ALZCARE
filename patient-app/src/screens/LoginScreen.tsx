@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
   SafeAreaView,
+  Modal,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,13 @@ import { useAuth } from '../context/AuthContext';
 import { Colors, Typography, Spacing, TouchTarget } from '../constants/theme';
 import { Button } from '../components/Button';
 import { ErrorBanner } from '../components/ErrorBanner';
+import {
+  getStoredServerUrl,
+  setCustomServerUrl,
+  resetCustomServerUrl,
+  checkBackendHealth,
+  HealthCheckResult,
+} from '../services/api';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -33,16 +41,63 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Server Settings & Connection state
+  const [isServerModalVisible, setIsServerModalVisible] = useState(false);
+  const [currentServerUrl, setCurrentServerUrl] = useState('http://192.168.1.5:5000/api');
+  const [serverInputText, setServerInputText] = useState('http://192.168.1.5:5000/api');
+  const [healthStatus, setHealthStatus] = useState<HealthCheckResult | null>(null);
+  const [isCheckingHealth, setIsCheckingHealth] = useState(false);
+
+  const testConnection = async (targetUrl?: string) => {
+    setIsCheckingHealth(true);
+    try {
+      const result = await checkBackendHealth(targetUrl || currentServerUrl);
+      setHealthStatus(result);
+      return result;
+    } finally {
+      setIsCheckingHealth(false);
+    }
+  };
+
+  React.useEffect(() => {
+    getStoredServerUrl().then((url) => {
+      setCurrentServerUrl(url);
+      setServerInputText(url);
+      testConnection(url);
+    });
+  }, []);
+
+  const handleSaveServerUrl = async () => {
+    if (!serverInputText.trim()) return;
+    const updated = await setCustomServerUrl(serverInputText.trim());
+    setCurrentServerUrl(updated);
+    setServerInputText(updated);
+    setIsServerModalVisible(false);
+    setErrorMessage('');
+    testConnection(updated);
+  };
+
+  const handleResetServerUrl = async () => {
+    const def = await resetCustomServerUrl();
+    setCurrentServerUrl(def);
+    setServerInputText(def);
+    setIsServerModalVisible(false);
+    setErrorMessage('');
+    testConnection(def);
+  };
+
   const handleLogin = async () => {
-    const cleanEmail = email.trim();
-    if (!cleanEmail) {
-      setErrorMessage('Please enter your email address');
+    const cleanInput = email.trim();
+    if (!cleanInput) {
+      setErrorMessage('Please enter your Patient ID or email address');
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(cleanEmail)) {
-      setErrorMessage('Please enter a valid email format (e.g. name@example.com)');
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanInput);
+    const isPatientId = cleanInput.length >= 3;
+
+    if (!isEmail && !isPatientId) {
+      setErrorMessage('Please enter a valid Patient ID (e.g. PAT-0001) or email format');
       return;
     }
 
@@ -55,7 +110,7 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
     setIsLoading(true);
 
     try {
-      await login(cleanEmail, password);
+      await login(cleanInput, password);
       // React Navigation's conditional Stack navigator in AppNavigator automatically transitions
       // to Main as soon as isAuthenticated becomes true in AuthContext.
     } catch (error: any) {
@@ -99,18 +154,102 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
               Access your prescribed exercises, upcoming appointments, and recovery progress.
             </Text>
 
+            {/* Development Connection Status Widget */}
+            <View style={styles.connWidget}>
+              <View style={styles.connHeaderRow}>
+                <View style={styles.connStatusPill}>
+                  <View
+                    style={[
+                      styles.connDot,
+                      healthStatus?.ok
+                        ? styles.connDotGreen
+                        : isCheckingHealth
+                        ? styles.connDotYellow
+                        : styles.connDotRed,
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.connStatusLabel,
+                      healthStatus?.ok
+                        ? styles.connStatusLabelGreen
+                        : isCheckingHealth
+                        ? styles.connStatusLabelYellow
+                        : styles.connStatusLabelRed,
+                    ]}
+                  >
+                    {isCheckingHealth
+                      ? 'Testing Connection...'
+                      : healthStatus?.ok
+                      ? `Connected (${healthStatus.latencyMs}ms)`
+                      : 'Server Unreachable'}
+                  </Text>
+                </View>
+
+                <View style={styles.connActionsRow}>
+                  <TouchableOpacity
+                    style={styles.connActionBtn}
+                    onPress={() => testConnection()}
+                    disabled={isCheckingHealth}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="refresh-outline"
+                      size={13}
+                      color={Colors.primaryLight}
+                    />
+                    <Text style={styles.connActionBtnText}>Test</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.connActionBtn}
+                    onPress={() => setIsServerModalVisible(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="options-outline"
+                      size={13}
+                      color={Colors.textSecondary}
+                    />
+                    <Text style={styles.connActionBtnTextSecondary}>Configure</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Target Server URL */}
+              <Text style={styles.connTargetText} numberOfLines={1} ellipsizeMode="middle">
+                Target: {currentServerUrl}
+              </Text>
+
+              {/* Readable diagnostics if unreachable */}
+              {!isCheckingHealth && healthStatus && !healthStatus.ok ? (
+                <View style={styles.connDiagnosticBox}>
+                  <Ionicons
+                    name="alert-circle-outline"
+                    size={14}
+                    color={Colors.danger}
+                    style={{ marginRight: 4, marginTop: 1 }}
+                  />
+                  <Text style={styles.connDiagnosticText}>
+                    {healthStatus.message}{'\n'}
+                    Tip: Tap 'Configure' to change the server IP or paste a tunnel URL.
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
             {errorMessage ? (
               <ErrorBanner message={errorMessage} onDismiss={() => setErrorMessage('')} />
             ) : null}
 
-            {/* Email Input */}
+            {/* Email / Patient ID Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
+              <Text style={styles.inputLabel}>PATIENT ID OR EMAIL ADDRESS</Text>
               <View style={styles.inputWrapper}>
-                <Ionicons name="mail-outline" size={22} color={Colors.textMuted} style={styles.inputIcon} />
+                <Ionicons name="person-circle-outline" size={22} color={Colors.textMuted} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="name@example.com"
+                  placeholder="PAT-0001 or name@example.com"
                   placeholderTextColor={Colors.textMuted}
                   value={email}
                   onChangeText={(text) => {
@@ -118,8 +257,7 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
                     if (errorMessage) setErrorMessage('');
                   }}
                   autoCapitalize="none"
-                  keyboardType="email-address"
-                  autoComplete="email"
+                  autoCorrect={false}
                 />
               </View>
             </View>
@@ -174,6 +312,19 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.demoFillText}>Quick Demo: Autofill Patient Credentials</Text>
             </TouchableOpacity>
 
+            {/* Server Settings Button */}
+            <TouchableOpacity
+              style={styles.serverSettingsBtn}
+              onPress={() => setIsServerModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="settings-outline" size={14} color={Colors.textMuted} />
+              <Text style={styles.serverSettingsText}>
+                Server: {currentServerUrl.replace('/api', '')}
+              </Text>
+              <Text style={styles.serverSettingsAction}>Change</Text>
+            </TouchableOpacity>
+
             <View style={styles.noticeBox}>
               <Ionicons name="medical" size={18} color={Colors.primaryLight} style={{ marginRight: 8 }} />
               <Text style={styles.noticeText}>
@@ -183,6 +334,58 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Server Settings Configuration Modal */}
+      <Modal
+        visible={isServerModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsServerModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Ionicons name="server-outline" size={22} color={Colors.primaryLight} style={{ marginRight: 8 }} />
+              <Text style={styles.modalTitle}>Backend Server Settings</Text>
+            </View>
+            <Text style={styles.modalSubtitle}>
+              Enter your computer's local Wi-Fi IP address or production backend URL.
+            </Text>
+
+            <Text style={styles.modalLabel}>SERVER API URL</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={serverInputText}
+              onChangeText={setServerInputText}
+              placeholder="http://192.168.1.5:5000/api"
+              placeholderTextColor={Colors.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setIsServerModalVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalResetBtn}
+                onPress={handleResetServerUrl}
+              >
+                <Text style={styles.modalResetText}>Reset</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalSaveBtn}
+                onPress={handleSaveServerUrl}
+              >
+                <Text style={styles.modalSaveText}>Save & Connect</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -326,5 +529,201 @@ const styles = StyleSheet.create({
     fontSize: Typography.caption + 1,
     color: Colors.textSecondary,
     lineHeight: 16,
+  },
+  serverSettingsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.xs,
+    marginTop: Spacing.sm,
+    gap: 6,
+  },
+  serverSettingsText: {
+    color: Colors.textMuted,
+    fontSize: Typography.caption,
+  },
+  serverSettingsAction: {
+    color: Colors.primaryLight,
+    fontSize: Typography.caption,
+    fontWeight: Typography.bold,
+    textDecorationLine: 'underline',
+  },
+  connWidget: {
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
+    padding: Spacing.sm + 2,
+    marginBottom: Spacing.md,
+  },
+  connHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  connStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  connDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  connDotGreen: {
+    backgroundColor: Colors.emerald,
+  },
+  connDotYellow: {
+    backgroundColor: Colors.amber,
+  },
+  connDotRed: {
+    backgroundColor: Colors.danger,
+  },
+  connStatusLabel: {
+    fontSize: Typography.caption,
+    fontWeight: Typography.medium,
+  },
+  connStatusLabelGreen: {
+    color: Colors.emeraldLight,
+  },
+  connStatusLabelYellow: {
+    color: Colors.amberLight,
+  },
+  connStatusLabelRed: {
+    color: Colors.danger,
+  },
+  connActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  connActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 6,
+    gap: 3,
+  },
+  connActionBtnText: {
+    fontSize: 11,
+    color: Colors.primaryLight,
+    fontWeight: Typography.bold,
+  },
+  connActionBtnTextSecondary: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontWeight: Typography.medium,
+  },
+  connTargetText: {
+    fontSize: Typography.caption - 1,
+    color: Colors.textMuted,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    marginTop: 2,
+  },
+  connDiagnosticBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+    borderRadius: 8,
+    padding: 6,
+    marginTop: 6,
+  },
+  connDiagnosticText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#FCA5A5',
+    lineHeight: 15,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  modalCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    padding: Spacing.lg,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  modalTitle: {
+    fontSize: Typography.titleMedium,
+    fontWeight: Typography.bold,
+    color: Colors.textPrimary,
+  },
+  modalSubtitle: {
+    fontSize: Typography.bodySmall,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.md,
+    lineHeight: 18,
+  },
+  modalLabel: {
+    fontSize: Typography.caption,
+    fontWeight: Typography.bold,
+    color: Colors.textMuted,
+    letterSpacing: 1,
+    marginBottom: Spacing.xs,
+  },
+  modalInput: {
+    backgroundColor: Colors.cardSecondary,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    color: Colors.textPrimary,
+    fontSize: Typography.bodyRegular,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  modalCancelBtn: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+  },
+  modalCancelText: {
+    color: Colors.textMuted,
+    fontSize: Typography.bodyRegular,
+  },
+  modalResetBtn: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+  },
+  modalResetText: {
+    color: Colors.amberLight,
+    fontSize: Typography.bodyRegular,
+    fontWeight: Typography.medium,
+  },
+  modalSaveBtn: {
+    backgroundColor: Colors.primary,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: 8,
+  },
+  modalSaveText: {
+    color: '#FFFFFF',
+    fontSize: Typography.bodyRegular,
+    fontWeight: Typography.bold,
   },
 });
