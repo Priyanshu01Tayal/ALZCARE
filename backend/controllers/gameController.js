@@ -129,10 +129,10 @@ const getGameAssignmentsByPatient = async (req, res) => {
       return res.status(404).json({ message: 'Patient not found' });
     }
 
-    if (req.role === 'Doctor' && patient.doctorId.toString() !== req.user._id.toString()) {
+    if (req.role === 'Doctor' && (!patient.doctorId || patient.doctorId.toString() !== req.user._id.toString())) {
       return res.status(403).json({ message: 'Not authorized to view games for this patient' });
     }
-    if (req.role === 'Patient' && patient._id.toString() !== req.user._id.toString()) {
+    if (req.role === 'Patient' && (!patient._id || patient._id.toString() !== req.user._id.toString())) {
       return res.status(403).json({ message: 'Not authorized to view assigned games' });
     }
 
@@ -159,10 +159,10 @@ const getPatientGamesWithCatalog = async (req, res) => {
       return res.status(404).json({ message: 'Patient not found' });
     }
 
-    if (req.role === 'Doctor' && patient.doctorId.toString() !== req.user._id.toString()) {
+    if (req.role === 'Doctor' && (!patient.doctorId || patient.doctorId.toString() !== req.user._id.toString())) {
       return res.status(403).json({ message: 'Not authorized to view games for this patient' });
     }
-    if (req.role === 'Patient' && patient._id.toString() !== req.user._id.toString()) {
+    if (req.role === 'Patient' && (!patient._id || patient._id.toString() !== req.user._id.toString())) {
       return res.status(403).json({ message: 'Not authorized to view games' });
     }
 
@@ -268,6 +268,23 @@ const submitGameResult = async (req, res) => {
     const finalTimeTaken = Number(timeTaken !== undefined ? timeTaken : (duration !== undefined ? duration : 0));
     const finalDifficulty = difficulty || (resolvedAssignment ? resolvedAssignment.difficulty : 'Medium');
 
+    // Deduplication check: Guard against rapid duplicate submissions (within 5 seconds)
+    const recentDuplicate = await GameResult.findOne({
+      patientId: req.user._id,
+      gameName: resolvedGameName,
+      score: finalScore,
+      createdAt: { $gte: new Date(Date.now() - 5000) },
+    });
+
+    if (recentDuplicate) {
+      return res.status(200).json({
+        success: true,
+        assignment: resolvedAssignment,
+        result: recentDuplicate,
+        deduplicated: true,
+      });
+    }
+
     const result = await GameResult.create({
       assignmentId: resolvedAssignment ? resolvedAssignment._id : null,
       patientId: req.user._id,
@@ -324,10 +341,10 @@ const getGameResultsByPatient = async (req, res) => {
       return res.status(404).json({ message: 'Patient not found' });
     }
 
-    if (req.role === 'Doctor' && patient.doctorId.toString() !== req.user._id.toString()) {
+    if (req.role === 'Doctor' && (!patient.doctorId || patient.doctorId.toString() !== req.user._id.toString())) {
       return res.status(403).json({ message: 'Not authorized to view game logs' });
     }
-    if (req.role === 'Patient' && patient._id.toString() !== req.user._id.toString()) {
+    if (req.role === 'Patient' && (!patient._id || patient._id.toString() !== req.user._id.toString())) {
       return res.status(403).json({ message: 'Not authorized to view your performance data' });
     }
 
@@ -354,10 +371,10 @@ const getGameProgress = async (req, res) => {
       return res.status(404).json({ message: 'Patient not found' });
     }
 
-    if (req.role === 'Doctor' && patient.doctorId.toString() !== req.user._id.toString()) {
+    if (req.role === 'Doctor' && (!patient.doctorId || patient.doctorId.toString() !== req.user._id.toString())) {
       return res.status(403).json({ message: 'Not authorized to view progress for this patient' });
     }
-    if (req.role === 'Patient' && patient._id.toString() !== req.user._id.toString()) {
+    if (req.role === 'Patient' && (!patient._id || patient._id.toString() !== req.user._id.toString())) {
       return res.status(403).json({ message: 'Not authorized to view this progress record' });
     }
 

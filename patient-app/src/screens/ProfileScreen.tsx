@@ -20,7 +20,7 @@ import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { useAuth } from '../context/AuthContext';
-import { getPatientProfileApi, updatePatientProfileApi } from '../services/api';
+import { getPatientProfileApi, updatePatientProfileApi, changePasswordApi } from '../services/api';
 import { Patient, Doctor } from '../types';
 
 export const ProfileScreen: React.FC = () => {
@@ -41,6 +41,14 @@ export const ProfileScreen: React.FC = () => {
   const [editContactPhone, setEditContactPhone] = useState('');
   const [editContactRelation, setEditContactRelation] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Password Change Modal State
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [updatingPassword, setUpdatingPassword] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -91,6 +99,40 @@ export const ProfileScreen: React.FC = () => {
       Alert.alert('Update Failed', err.message || 'Could not update profile information.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+    try {
+      setUpdatingPassword(true);
+      setPasswordError(null);
+      await changePasswordApi({
+        currentPassword: currentPassword.trim(),
+        newPassword: newPassword.trim(),
+      });
+      if (patient) {
+        setPatient({ ...patient, mustChangePassword: false });
+      }
+      Alert.alert(
+        'Password Updated',
+        'Your account password has been updated securely. Please use your new password next time you sign in.'
+      );
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordModalVisible(false);
+    } catch (err: any) {
+      setPasswordError(err.message || 'Could not update password.');
+    } finally {
+      setUpdatingPassword(false);
     }
   };
 
@@ -246,6 +288,41 @@ export const ProfileScreen: React.FC = () => {
           )}
         </Card>
 
+        {/* Account Security & Password Card */}
+        <Card style={styles.infoCard}>
+          <Text style={styles.cardSectionTitle}>Account &amp; Security</Text>
+          <View style={styles.infoRow}>
+            <MaterialCommunityIcons name="shield-check" size={20} color={theme.colors.success} />
+            <View style={styles.infoTexts}>
+              <Text style={styles.infoLabel}>Account Status</Text>
+              <Text style={styles.infoValue}>{patient?.status || 'Active'}</Text>
+            </View>
+          </View>
+
+          {(patient?.mustChangePassword || user?.mustChangePassword) && (
+            <View style={styles.tempPasswordNotice}>
+              <MaterialCommunityIcons name="alert" size={18} color={theme.colors.warning} />
+              <Text style={styles.tempPasswordNoticeText}>
+                You are currently signed in with a temporary password issued by your physician. Please update your password to maintain medical privacy.
+              </Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={styles.changePasswordBtn}
+            onPress={() => {
+              setPasswordError(null);
+              setPasswordModalVisible(true);
+            }}
+          >
+            <View style={styles.changePasswordBtnLeft}>
+              <MaterialCommunityIcons name="key-variant" size={20} color={theme.colors.primary} />
+              <Text style={styles.changePasswordBtnText}>Change Account Password</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+        </Card>
+
         {/* Logout Section */}
         <View style={styles.logoutSection}>
           <Button
@@ -332,6 +409,75 @@ export const ProfileScreen: React.FC = () => {
                 loading={saving}
                 style={{ flex: 1.5 }}
                 onPress={handleSaveProfile}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Change Password Modal */}
+      <Modal visible={passwordModalVisible} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Change Account Password</Text>
+              <TouchableOpacity onPress={() => setPasswordModalVisible(false)}>
+                <MaterialCommunityIcons name="close" size={26} color={theme.colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            {passwordError && (
+              <View style={styles.modalErrorBanner}>
+                <MaterialCommunityIcons name="alert-circle" size={18} color={theme.colors.danger} />
+                <Text style={styles.modalErrorText}>{passwordError}</Text>
+              </View>
+            )}
+
+            <ScrollView style={styles.modalScroll}>
+              <Text style={styles.inputLabel}>Current / Temporary Password</Text>
+              <TextInput
+                style={styles.textInput}
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                placeholder="Enter current password"
+                placeholderTextColor={theme.colors.textMuted}
+                secureTextEntry
+              />
+
+              <Text style={styles.inputLabel}>New Password (Min 6 characters)</Text>
+              <TextInput
+                style={styles.textInput}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                placeholder="Enter new private password"
+                placeholderTextColor={theme.colors.textMuted}
+                secureTextEntry
+              />
+
+              <Text style={styles.inputLabel}>Confirm New Password</Text>
+              <TextInput
+                style={styles.textInput}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Repeat new password"
+                placeholderTextColor={theme.colors.textMuted}
+                secureTextEntry
+              />
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <Button
+                title="Cancel"
+                variant="outline"
+                style={{ flex: 1 }}
+                onPress={() => setPasswordModalVisible(false)}
+              />
+              <Button
+                title="Update Password"
+                variant="primary"
+                loading={updatingPassword}
+                style={{ flex: 1.5 }}
+                onPress={handlePasswordChange}
               />
             </View>
           </View>
@@ -507,5 +653,61 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: theme.spacing.md,
     marginTop: theme.spacing.sm,
+  },
+  tempPasswordNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderWidth: 1,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+    gap: theme.spacing.xs,
+  },
+  tempPasswordNoticeText: {
+    flex: 1,
+    fontSize: theme.typography.sizes.caption,
+    color: theme.colors.warning,
+    lineHeight: 18,
+  },
+  changePasswordBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.surfaceLight,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    marginTop: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  changePasswordBtnLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  changePasswordBtnText: {
+    fontSize: theme.typography.sizes.body,
+    fontWeight: theme.typography.weights.semibold,
+    color: theme.colors.textPrimary,
+  },
+  modalErrorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+    gap: theme.spacing.xs,
+  },
+  modalErrorText: {
+    flex: 1,
+    fontSize: theme.typography.sizes.caption,
+    color: theme.colors.danger,
   },
 });

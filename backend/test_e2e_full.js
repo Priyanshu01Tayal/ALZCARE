@@ -1,292 +1,445 @@
 const http = require('http');
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
-const path = require('path');
-const jwt = require('jsonwebtoken');
 
-dotenv.config({ path: path.join(__dirname, '.env') });
+const BASE_URL = 'http://127.0.0.1:5000';
 
-const connectDB = require('./config/db');
-const Doctor = require('./models/Doctor');
-const Patient = require('./models/Patient');
-const GameAssignment = require('./models/GameAssignment');
-const GameResult = require('./models/GameResult');
-const Appointment = require('./models/Appointment');
-
-const express = require('express');
-const cors = require('cors');
-
-// Helper to make HTTP requests
-const request = (appServer, method, path, headers = {}, body = null) => {
+function request(method, path, body = null, token = null) {
   return new Promise((resolve, reject) => {
-    const address = appServer.address();
-    const port = address.port;
-
-    const postData = body ? JSON.stringify(body) : null;
-    const reqHeaders = {
-      'Content-Type': 'application/json',
-      ...headers,
+    const url = new URL(path, BASE_URL);
+    const options = {
+      method,
+      hostname: url.hostname,
+      port: url.port,
+      path: url.pathname + url.search,
+      headers: {
+        'Content-Type': 'application/json',
+      },
     };
-    if (postData) {
-      reqHeaders['Content-Length'] = Buffer.byteLength(postData);
+
+    if (token) {
+      options.headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const req = http.request(
-      {
-        host: '127.0.0.1',
-        port: port,
-        method: method,
-        path: path,
-        headers: reqHeaders,
-      },
-      (res) => {
-        let data = '';
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
-        res.on('end', () => {
-          try {
-            const parsed = data ? JSON.parse(data) : {};
-            resolve({ status: res.statusCode, data: parsed });
-          } catch (e) {
-            resolve({ status: res.statusCode, raw: data });
-          }
-        });
-      }
-    );
+    const req = http.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => (data += chunk));
+      res.on('end', () => {
+        let json = null;
+        try {
+          json = data ? JSON.parse(data) : {};
+        } catch (e) {
+          json = { raw: data };
+        }
+        resolve({ status: res.statusCode, data: json });
+      });
+    });
 
-    req.on('error', (err) => reject(err));
-    if (postData) {
-      req.write(postData);
+    req.on('error', reject);
+    if (body) {
+      req.write(JSON.stringify(body));
     }
     req.end();
   });
-};
+}
 
-async function runEndToEndTest() {
-  console.log('====================================================');
-  console.log('STARTING ALZCARE END-TO-END ECOSYSTEM VERIFICATION');
-  console.log('====================================================\n');
+const results = [];
+function recordTest(testName, passed, details = '') {
+  results.push({ testName, passed, details });
+  console.log(`${passed ? '✅ PASS' : '❌ FAIL'}: ${testName} ${details ? '(' + details + ')' : ''}`);
+}
 
-  // 1. Connect to Mongo
-  await connectDB();
+async function runAllTests() {
+  console.log('\n======================================================');
+  console.log('🚀 ALZCARE FULL SYSTEM END-TO-END VERIFICATION');
+  console.log('======================================================\n');
 
-  // Create Express App
-  const app = express();
-  app.use(cors());
-  app.use(express.json());
-  app.use('/api/auth', require('./routes/authRoutes'));
-  app.use('/api/patients', require('./routes/patientRoutes'));
-  app.use('/api/appointments', require('./routes/appointmentRoutes'));
-  app.use('/api/prescriptions', require('./routes/prescriptionRoutes'));
-  app.use('/api/mri', require('./routes/mriRoutes'));
-  app.use('/api/games', require('./routes/gameRoutes'));
-  app.use('/api/notifications', require('./routes/notificationRoutes'));
-  app.use('/api/timeline', require('./routes/timelineRoutes'));
-  app.use('/api/doctors', require('./routes/doctorRoutes'));
+  let doctorToken = null;
+  let doctorUser = null;
+  let existingPatientToken = null;
+  let createdPatientId = null;
+  let createdPatientEmail = `test.e2e.${Date.now()}@alzcare.com`;
+  let tempPassword = null;
+  let newPatientToken = null;
+  let assignmentId = null;
 
-  const server = http.createServer(app);
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const testPort = server.address().port;
-  console.log(`[Test Server] Running on ephemeral port ${testPort}`);
+  // -------------------------------------------------------------------------
+  // TEST A: AUTHENTICATION
+  // -------------------------------------------------------------------------
+  console.log('--- TEST A: AUTHENTICATION ---');
+
+  // A1: Doctor login
+  try {
+    const res = await request('POST', '/api/auth/login', {
+      email: 'jane.foster@alzcare.com',
+      password: 'password123',
+    });
+    if (res.status === 200 && res.data.token && res.data.role === 'Doctor') {
+      doctorToken = res.data.token;
+      doctorUser = res.data;
+      recordTest('Test A1: Doctor Login', true, `Dr. ${res.data.name}`);
+    } else {
+      recordTest('Test A1: Doctor Login', false, `Status ${res.status}: ${JSON.stringify(res.data)}`);
+    }
+  } catch (err) {
+    recordTest('Test A1: Doctor Login', false, err.message);
+  }
+
+  // A2: Existing Patient login
+  try {
+    const res = await request('POST', '/api/auth/login', {
+      email: 'lucky123@gmail.com',
+      password: 'password123',
+    });
+    if (res.status === 200 && res.data.token && res.data.role === 'Patient') {
+      existingPatientToken = res.data.token;
+      recordTest('Test A2: Existing Patient Login', true, `Patient ${res.data.name}`);
+    } else {
+      recordTest('Test A2: Existing Patient Login', false, `Status ${res.status}: ${JSON.stringify(res.data)}`);
+    }
+  } catch (err) {
+    recordTest('Test A2: Existing Patient Login', false, err.message);
+  }
+
+  // A3: Invalid credentials handling
+  try {
+    const res = await request('POST', '/api/auth/login', {
+      email: 'lucky123@gmail.com',
+      password: 'wrongpassword999',
+    });
+    if (res.status === 401 && res.data.message) {
+      recordTest('Test A3: Invalid Credentials Rejection', true, `Status 401: ${res.data.message}`);
+    } else {
+      recordTest('Test A3: Invalid Credentials Rejection', false, `Expected 401, got ${res.status}`);
+    }
+  } catch (err) {
+    recordTest('Test A3: Invalid Credentials Rejection', false, err.message);
+  }
+
+  // -------------------------------------------------------------------------
+  // TEST B: PATIENT REGISTRATION WORKFLOW
+  // -------------------------------------------------------------------------
+  console.log('\n--- TEST B: PATIENT REGISTRATION WORKFLOW ---');
 
   try {
-    // Check doctor user
-    let doctor = await Doctor.findOne();
-    if (!doctor) {
-      console.log('Creating test doctor...');
-      doctor = await Doctor.create({
-        name: 'Dr. Jane Foster',
-        email: 'dr.foster@alzcare.com',
-        password: 'password123',
-        specialization: 'Cognitive Neurology',
-      });
-    }
-
-    // Check patient
-    let patient = await Patient.findOne({ email: 'lucky123@gmail.com' });
-    if (!patient) {
-      console.log('Creating test patient...');
-      patient = await Patient.create({
-        name: 'Rahul Kumar',
-        email: 'lucky123@gmail.com',
-        password: 'password123',
-        age: 68,
-        gender: 'Male',
-        patientId: 'PAT-0001',
-        doctorId: doctor._id,
-      });
-    } else {
-      patient.doctorId = doctor._id;
-      await patient.save();
-    }
-
-    // STEP 1: Doctor Login
-    console.log('\nSTEP 1: Doctor Authenticates in AlzCare system...');
-    const doctorToken = jwt.sign(
-      { id: doctor._id, role: 'Doctor' },
-      process.env.JWT_SECRET || 'alzcare_secret_key_2026',
-      { expiresIn: '30d' }
-    );
-    console.log(`✓ Doctor authenticated: Dr. ${doctor.name} (${doctor.email})`);
-
-    // STEP 2: Doctor selects Patient
-    console.log('\nSTEP 2: Doctor selects Patient in dashboard...');
-    const patientDetailsRes = await request(
-      server,
-      'GET',
-      `/api/patients/${patient._id}`,
-      { Authorization: `Bearer ${doctorToken}` }
-    );
-    console.log(`✓ Retrieved patient: ${patientDetailsRes.data.patient.name} [ID: ${patientDetailsRes.data.patient.patientId}]`);
-
-    // STEP 3: Doctor Assigns Game A (Memory Match)
-    console.log('\nSTEP 3: Doctor assigns cognitive game (Memory Match)...');
-    const assignPayload = {
-      gameName: 'Memory Match',
-      difficulty: 'Medium',
-      frequency: 'Daily',
-      repetitions: 3,
-      startDate: new Date().toISOString(),
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      notes: 'Please complete daily morning session after breakfast.',
-    };
-
-    const assignRes = await request(
-      server,
+    const res = await request(
       'POST',
-      `/api/doctors/patients/${patient._id}/games`,
-      { Authorization: `Bearer ${doctorToken}` },
-      assignPayload
+      '/api/patients',
+      {
+        name: 'Eleanor Vance',
+        email: createdPatientEmail,
+        age: 69,
+        gender: 'Female',
+        status: 'Active',
+        phone: '+1 555-891-2345',
+        emergencyContact: '+1 555-891-9999',
+        medicalHistory: 'Early mild cognitive signs, hypertension',
+      },
+      doctorToken
     );
-    console.log(`✓ Game assigned status: ${assignRes.status}, Assignment ID: ${assignRes.data._id || assignRes.data.assignment?._id}`);
-    const assignmentId = assignRes.data._id || assignRes.data.assignment?._id;
 
-    // STEP 4: Verify assignment stored in database
-    console.log('\nSTEP 4: Verifying assignment is saved in MongoDB...');
-    const assignmentDb = await GameAssignment.findById(assignmentId);
-    if (!assignmentDb) throw new Error('Assignment not found in MongoDB!');
-    console.log(`✓ MongoDB confirmed assignment: Game="${assignmentDb.gameName}", Frequency="${assignmentDb.frequency}", Status="${assignmentDb.status}"`);
+    if (
+      (res.status === 200 || res.status === 201) &&
+      res.data.patient &&
+      res.data.initialCredentials &&
+      res.data.initialCredentials.temporaryPassword
+    ) {
+      createdPatientId = res.data.patient._id;
+      tempPassword = res.data.initialCredentials.temporaryPassword;
+      recordTest(
+        'Test B1: Doctor Registers Patient & Generates Temp Password',
+        true,
+        `Patient ID: ${res.data.patient.patientId}, Temp Pwd: ${tempPassword}`
+      );
+    } else {
+      recordTest('Test B1: Doctor Registers Patient & Generates Temp Password', false, JSON.stringify(res.data));
+    }
+  } catch (err) {
+    recordTest('Test B1: Doctor Registers Patient & Generates Temp Password', false, err.message);
+  }
 
-    // STEP 5: Patient logs in (Mobile App Login Flow)
-    console.log('\nSTEP 5: Patient logs in via Mobile App...');
-    const patientToken = jwt.sign(
-      { id: patient._id, role: 'Patient' },
-      process.env.JWT_SECRET || 'alzcare_secret_key_2026',
-      { expiresIn: '30d' }
+  // B2: Patient logs in with the generated temporary credentials
+  try {
+    const res = await request('POST', '/api/auth/login', {
+      email: createdPatientEmail,
+      password: tempPassword,
+    });
+
+    if (res.status === 200 && res.data.token && res.data.mustChangePassword === true) {
+      newPatientToken = res.data.token;
+      recordTest('Test B2: Patient Logs in with Temporary Credentials', true, 'Session token issued with mustChangePassword flag');
+    } else {
+      recordTest('Test B2: Patient Logs in with Temporary Credentials', false, `Status ${res.status}: ${JSON.stringify(res.data)}`);
+    }
+  } catch (err) {
+    recordTest('Test B2: Patient Logs in with Temporary Credentials', false, err.message);
+  }
+
+  // -------------------------------------------------------------------------
+  // TEST C: COGNITIVE GAME SYNCHRONIZATION
+  // -------------------------------------------------------------------------
+  console.log('\n--- TEST C: COGNITIVE GAME SYNCHRONIZATION ---');
+
+  // C1: Doctor assigns game
+  try {
+    const res = await request(
+      'POST',
+      '/api/games/assign',
+      {
+        patientId: createdPatientId,
+        gameName: 'Memory Match',
+        difficulty: 'Medium',
+        frequency: 'Daily',
+        repetitions: 1,
+        notes: 'Target visual associative recall 1x daily',
+      },
+      doctorToken
     );
-    console.log(`✓ Patient authenticated on mobile: ${patient.name}`);
 
-    // STEP 6: Patient Mobile App fetches games
-    console.log('\nSTEP 6: Patient Mobile App fetches assigned & catalog games...');
-    const patientGamesRes = await request(
-      server,
-      'GET',
-      '/api/patients/me/games',
-      { Authorization: `Bearer ${patientToken}` }
-    );
-    const assignedGame = patientGamesRes.data.games.find((g) => g.gameName === 'Memory Match');
-    console.log(`✓ Found game in mobile list: "${assignedGame.gameName}", isAssigned=${assignedGame.isAssigned}, Status=${assignedGame.assignmentStatus}`);
-    if (!assignedGame.isAssigned) throw new Error('Assigned game flag is false!');
+    if ((res.status === 200 || res.status === 201) && res.data._id) {
+      assignmentId = res.data._id;
+      recordTest('Test C1: Doctor Assigns Cognitive Game', true, `Assignment ID: ${assignmentId}`);
+    } else {
+      recordTest('Test C1: Doctor Assigns Cognitive Game', false, JSON.stringify(res.data));
+    }
+  } catch (err) {
+    recordTest('Test C1: Doctor Assigns Cognitive Game', false, err.message);
+  }
 
-    // STEP 7 & 8: Patient plays and completes Game A on Mobile
-    console.log('\nSTEP 7 & 8: Patient plays and completes "Memory Match" on Mobile...');
-    const gameResultPayload = {
-      assignmentId: assignmentId.toString(),
-      gameName: 'Memory Match',
-      score: 88,
-      accuracy: 92,
-      timeTaken: 45,
-      moves: 12,
-      difficulty: 'Medium',
-    };
-    console.log('✓ Game metrics recorded: Score=88, Accuracy=92%, Time=45s, Moves=12');
+  // C2: Patient fetches assigned games
+  try {
+    const res = await request('GET', '/api/patients/me/games', null, newPatientToken);
+    const assignedItem = (res.data?.games || []).find((g) => g.gameName === 'Memory Match');
 
-    // STEP 9: Save result to database via POST /api/games/result
-    console.log('\nSTEP 9: Submitting result from Mobile App to Backend...');
-    const submitResultRes = await request(
-      server,
+    if (res.status === 200 && assignedItem && assignedItem.isAssigned) {
+      recordTest('Test C2: Patient App Synchronizes Assignment', true, `Memory Match status: ${assignedItem.assignmentStatus}`);
+    } else {
+      recordTest('Test C2: Patient App Synchronizes Assignment', false, JSON.stringify(res.data));
+    }
+  } catch (err) {
+    recordTest('Test C2: Patient App Synchronizes Assignment', false, err.message);
+  }
+
+  // C3: Patient submits real game result
+  let submittedResultId = null;
+  try {
+    const res = await request(
       'POST',
       '/api/games/result',
-      { Authorization: `Bearer ${patientToken}` },
-      gameResultPayload
+      {
+        assignmentId,
+        gameName: 'Memory Match',
+        difficulty: 'Medium',
+        score: 95,
+        accuracy: 94,
+        timeTaken: 38,
+        moves: 14,
+      },
+      newPatientToken
     );
-    console.log(`✓ Submit response status: ${submitResultRes.status}, Result ID: ${submitResultRes.data.result?._id}`);
 
-    // STEP 10: Patient Mobile App shows updated progress
-    console.log('\nSTEP 10: Patient Mobile App fetches updated personal progress...');
-    const patientProgressRes = await request(
-      server,
-      'GET',
-      '/api/patients/me/game-progress',
-      { Authorization: `Bearer ${patientToken}` }
-    );
-    console.log(`✓ Patient Progress Summary:`, {
-      totalPlayed: patientProgressRes.data.summary.totalPlayed,
-      bestScore: patientProgressRes.data.summary.bestScore,
-      averageScore: patientProgressRes.data.summary.averageScore,
-      completionRate: `${patientProgressRes.data.summary.completionRate}%`,
-    });
-
-    // STEP 11 & 12: Doctor Dashboard displays updated progress
-    console.log('\nSTEP 11 & 12: Doctor views patient cognitive progress in Web Dashboard...');
-    const doctorProgressRes = await request(
-      server,
-      'GET',
-      `/api/doctors/patients/${patient._id}/game-progress`,
-      { Authorization: `Bearer ${doctorToken}` }
-    );
-    console.log(`✓ Doctor Dashboard Cognitive Progress for Patient "${doctorProgressRes.data.patient.name}":`);
-    console.log(`  - Total Completed Assignments: ${doctorProgressRes.data.summary.completedAssignments}`);
-    console.log(`  - Total Sessions Played: ${doctorProgressRes.data.summary.totalPlayed}`);
-    console.log(`  - Overall Best Score: ${doctorProgressRes.data.summary.bestScore}`);
-    console.log(`  - Overall Average Score: ${doctorProgressRes.data.summary.averageScore}`);
-
-    const memoryMatchBreakdown = doctorProgressRes.data.gameWise.find((g) => g.gameName === 'Memory Match');
-    console.log(`  - "Memory Match" Game-Wise Card:`, {
-      assigned: memoryMatchBreakdown.isAssigned,
-      completed: memoryMatchBreakdown.completedCount,
-      attempts: memoryMatchBreakdown.attempts,
-      bestScore: memoryMatchBreakdown.bestScore,
-      averageScore: memoryMatchBreakdown.averageScore,
-      lastPlayed: memoryMatchBreakdown.lastPlayed ? new Date(memoryMatchBreakdown.lastPlayed).toLocaleDateString() : 'Never',
-    });
-
-    // STEP 13 & 14: Appointments Verification
-    console.log('\nSTEP 13 & 14: Checking Appointments synchronization between Doctor and Mobile...');
-    let existingApp = await Appointment.findOne({ patientId: patient._id });
-    if (!existingApp) {
-      existingApp = await Appointment.create({
-        patientId: patient._id,
-        doctorId: doctor._id,
-        date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        timeSlot: '10:30 AM',
-        status: 'Scheduled',
-        reason: 'Cognitive Trajectory Review',
-      });
-      console.log(`✓ Created test appointment: ${existingApp.date} at ${existingApp.timeSlot}`);
+    if ((res.status === 200 || res.status === 201) && res.data.result) {
+      submittedResultId = res.data.result._id;
+      recordTest('Test C3: Patient Submits Game Result', true, `Score: 95, Accuracy: 94%, Time: 38s`);
+    } else {
+      recordTest('Test C3: Patient Submits Game Result', false, JSON.stringify(res.data));
     }
+  } catch (err) {
+    recordTest('Test C3: Patient Submits Game Result', false, err.message);
+  }
 
-    const patientAppointmentsRes = await request(
-      server,
-      'GET',
-      '/api/patients/me/appointments',
-      { Authorization: `Bearer ${patientToken}` }
+  // C4: Deduplication test
+  try {
+    const res = await request(
+      'POST',
+      '/api/games/result',
+      {
+        assignmentId,
+        gameName: 'Memory Match',
+        difficulty: 'Medium',
+        score: 95,
+        accuracy: 94,
+        timeTaken: 38,
+        moves: 14,
+      },
+      newPatientToken
     );
-    console.log(`✓ Patient Mobile App retrieved ${patientAppointmentsRes.data.length} appointment(s).`);
-    const appMatch = patientAppointmentsRes.data.find((a) => a._id.toString() === existingApp._id.toString());
-    console.log(`✓ Confirmed synchronized appointment: Date=${appMatch.date}, TimeSlot=${appMatch.timeSlot}, Status=${appMatch.status}`);
 
-    console.log('\n====================================================');
-    console.log('ALL 14 END-TO-END INTEGRATION STEPS PASSED PERFECTLY!');
-    console.log('====================================================');
-  } finally {
-    server.close();
-    await mongoose.connection.close();
+    if (res.status === 200 && res.data.deduplicated === true) {
+      recordTest('Test C4: Submission Deduplication Protection', true, 'Rapid duplicate request safely caught and returned existing record');
+    } else {
+      recordTest('Test C4: Submission Deduplication Protection', false, `Status ${res.status}: ${JSON.stringify(res.data)}`);
+    }
+  } catch (err) {
+    recordTest('Test C4: Submission Deduplication Protection', false, err.message);
+  }
+
+  // -------------------------------------------------------------------------
+  // TEST D: CHARTS & ANALYTICS SYNCHRONIZATION
+  // -------------------------------------------------------------------------
+  console.log('\n--- TEST D: CHARTS & ANALYTICS SYNCHRONIZATION ---');
+
+  // D1: Doctor fetches progress analytics for the patient
+  try {
+    const res = await request('GET', `/api/games/progress/${createdPatientId}`, null, doctorToken);
+
+    if (
+      res.status === 200 &&
+      res.data.summary?.totalPlayed >= 1 &&
+      res.data.summary?.bestScore === 95 &&
+      res.data.recentResults?.length >= 1
+    ) {
+      recordTest(
+        'Test D1: Doctor Dashboard Progress Analytics Grounded in Real Data',
+        true,
+        `Total Played: ${res.data.summary.totalPlayed}, Best: ${res.data.summary.bestScore}, Avg Acc: ${res.data.summary.averageAccuracy}%`
+      );
+    } else {
+      recordTest('Test D1: Doctor Dashboard Progress Analytics Grounded in Real Data', false, JSON.stringify(res.data?.summary));
+    }
+  } catch (err) {
+    recordTest('Test D1: Doctor Dashboard Progress Analytics Grounded in Real Data', false, err.message);
+  }
+
+  // D2: Doctor activity feed
+  try {
+    const res = await request('GET', '/api/doctors/activity', null, doctorToken);
+    const hasRecent = (res.data?.recentResults || []).some(
+      (r) => r.gameName === 'Memory Match' && r.score === 95
+    );
+
+    if (res.status === 200 && hasRecent) {
+      recordTest('Test D2: Doctor Activity Feed Reactivity', true, 'Doctor activity contains latest game submission');
+    } else {
+      recordTest('Test D2: Doctor Activity Feed Reactivity', false, JSON.stringify(res.data?.recentResults));
+    }
+  } catch (err) {
+    recordTest('Test D2: Doctor Activity Feed Reactivity', false, err.message);
+  }
+
+  // -------------------------------------------------------------------------
+  // TEST E: SECURITY & PASSWORD LIFECYCLE
+  // -------------------------------------------------------------------------
+  console.log('\n--- TEST E: SECURITY & PASSWORD LIFECYCLE ---');
+
+  // E1: Unauthenticated rejection
+  try {
+    const res = await request('GET', '/api/patients/me');
+    if (res.status === 401) {
+      recordTest('Test E1: Unauthenticated Protected Endpoint Guard', true, 'Status 401 unauthorized');
+    } else {
+      recordTest('Test E1: Unauthenticated Protected Endpoint Guard', false, `Expected 401, got ${res.status}`);
+    }
+  } catch (err) {
+    recordTest('Test E1: Unauthenticated Protected Endpoint Guard', false, err.message);
+  }
+
+  // E2: Patient cross-access protection (patient cannot view another patient's progress)
+  try {
+    const res = await request('GET', `/api/games/progress/${createdPatientId}`, null, existingPatientToken);
+    if (res.status === 403) {
+      recordTest('Test E2: Cross-Patient Authorization Enforcement', true, 'Status 403 forbidden');
+    } else {
+      recordTest('Test E2: Cross-Patient Authorization Enforcement', false, `Expected 403, got ${res.status}`);
+    }
+  } catch (err) {
+    recordTest('Test E2: Cross-Patient Authorization Enforcement', false, err.message);
+  }
+
+  // E3: Password change workflow
+  const permanentPassword = 'PermanentSecure#2026';
+  try {
+    const res = await request(
+      'PUT',
+      '/api/patients/me/password',
+      {
+        currentPassword: tempPassword,
+        newPassword: permanentPassword,
+      },
+      newPatientToken
+    );
+
+    if (res.status === 200 && res.data.message) {
+      recordTest('Test E3: Patient Password Change from Temporary to Permanent', true, res.data.message);
+    } else {
+      recordTest('Test E3: Patient Password Change from Temporary to Permanent', false, JSON.stringify(res.data));
+    }
+  } catch (err) {
+    recordTest('Test E3: Patient Password Change from Temporary to Permanent', false, err.message);
+  }
+
+  // E4: Login with permanent password
+  try {
+    const res = await request('POST', '/api/auth/login', {
+      email: createdPatientEmail,
+      password: permanentPassword,
+    });
+
+    if (res.status === 200 && res.data.mustChangePassword === false) {
+      recordTest('Test E4: Login with Permanent Password (mustChangePassword cleared)', true, 'Patient verified');
+    } else {
+      recordTest('Test E4: Login with Permanent Password (mustChangePassword cleared)', false, JSON.stringify(res.data));
+    }
+  } catch (err) {
+    recordTest('Test E4: Login with Permanent Password (mustChangePassword cleared)', false, err.message);
+  }
+
+  // -------------------------------------------------------------------------
+  // TEST F: REGRESSION CHECKS
+  // -------------------------------------------------------------------------
+  console.log('\n--- TEST F: REGRESSION CHECKS ---');
+
+  // F1: Game catalog
+  try {
+    const res = await request('GET', '/api/games/catalog');
+    if (res.status === 200 && Array.isArray(res.data) && res.data.length === 4) {
+      recordTest('Test F1: Game Catalog Intact', true, `${res.data.length} games available`);
+    } else {
+      recordTest('Test F1: Game Catalog Intact', false, JSON.stringify(res.data));
+    }
+  } catch (err) {
+    recordTest('Test F1: Game Catalog Intact', false, err.message);
+  }
+
+  // F2: Appointments API
+  try {
+    const res = await request('GET', '/api/appointments', null, doctorToken);
+    if (res.status === 200 && Array.isArray(res.data)) {
+      recordTest('Test F2: Appointments API Operational', true, `${res.data.length} appointments listed`);
+    } else {
+      recordTest('Test F2: Appointments API Operational', false, JSON.stringify(res.data));
+    }
+  } catch (err) {
+    recordTest('Test F2: Appointments API Operational', false, err.message);
+  }
+
+  // F3: Patient profile endpoint
+  try {
+    const res = await request('GET', '/api/patients/me', null, newPatientToken);
+    if (res.status === 200 && res.data.patient && res.data.doctor) {
+      recordTest('Test F3: Patient Profile & Doctor Association', true, `Associated Doctor: Dr. ${res.data.doctor.name}`);
+    } else {
+      recordTest('Test F3: Patient Profile & Doctor Association', false, JSON.stringify(res.data));
+    }
+  } catch (err) {
+    recordTest('Test F3: Patient Profile & Doctor Association', false, err.message);
+  }
+
+  // Summary
+  console.log('\n======================================================');
+  console.log('📊 TEST EXECUTION SUMMARY');
+  console.log('======================================================');
+  const passedCount = results.filter((r) => r.passed).length;
+  const failedCount = results.filter((r) => !r.passed).length;
+  console.log(`Total Tests Run: ${results.length}`);
+  console.log(`Passed: ${passedCount}`);
+  console.log(`Failed: ${failedCount}`);
+
+  if (failedCount === 0) {
+    console.log('\n🎉 ALL END-TO-END TESTS PASSED PERFECTLY!\n');
+  } else {
+    console.log(`\n⚠️  ${failedCount} TESTS FAILED\n`);
   }
 }
 
-runEndToEndTest().catch((err) => {
-  console.error('\nE2E Test Failed with error:', err);
-  process.exit(1);
+runAllTests().catch((err) => {
+  console.error('Test suite runner crashed:', err);
 });

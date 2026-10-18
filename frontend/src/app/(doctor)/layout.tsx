@@ -14,6 +14,7 @@ import {
   Bell,
   Activity,
   Check,
+  BrainCircuit,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -69,6 +70,7 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
   const navItems = [
     { name: 'Dashboard', path: '/doctor/dashboard', icon: LayoutDashboard },
     { name: 'Patient Directory', path: '/patients', icon: Users },
+    { name: 'Cognitive Analytics', path: '/doctor/analytics', icon: BrainCircuit },
     { name: 'Clinic Appointments', path: '/doctor/appointments', icon: Calendar },
   ];
 

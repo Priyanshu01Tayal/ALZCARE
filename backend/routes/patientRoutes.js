@@ -9,6 +9,7 @@ const {
   getPatientMe,
   updatePatientMe,
   getPatientDoctor,
+  changePatientPassword,
 } = require('../controllers/patientController');
 const {
   getPatientGamesWithCatalog,
@@ -21,6 +22,7 @@ const { protect, restrictTo } = require('../middleware/authMiddleware');
 // Patient self-access endpoints (must be defined before /:id)
 router.get('/me', protect, restrictTo('Patient'), getPatientMe);
 router.put('/me', protect, restrictTo('Patient'), updatePatientMe);
+router.put('/me/password', protect, restrictTo('Patient'), changePatientPassword);
 router.get('/me/doctor', protect, restrictTo('Patient'), getPatientDoctor);
 router.get('/me/games', protect, restrictTo('Patient'), getPatientGamesWithCatalog);
 router.get('/me/game-assignments', protect, restrictTo('Patient'), getGameAssignmentsByPatient);

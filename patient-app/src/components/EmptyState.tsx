@@ -23,10 +23,18 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 }) => {
   const btnText = actionTitle || actionLabel;
 
+  const safeIconName =
+    typeof icon === 'string' &&
+    Ionicons?.glyphMap &&
+    typeof Ionicons.glyphMap === 'object' &&
+    icon in Ionicons.glyphMap
+      ? icon
+      : 'information-circle-outline';
+
   return (
     <View style={styles.container}>
       <View style={styles.iconCircle}>
-        <Ionicons name={icon in Ionicons.glyphMap ? icon : 'information-circle-outline'} size={38} color={Colors.primaryLight} />
+        <Ionicons name={safeIconName as any} size={38} color={Colors.primaryLight} />
       </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.description}>{description}</Text>

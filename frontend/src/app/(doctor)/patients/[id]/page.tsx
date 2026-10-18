@@ -30,6 +30,7 @@ import {
   usePatientTimelineQuery,
 } from '@/hooks/useApi';
 import { useToastStore } from '@/lib/stores/toast';
+import { PatientCognitiveAnalytics } from '@/components/doctor/PatientCognitiveAnalytics';
 
 export default function PatientDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -850,178 +851,16 @@ export default function PatientDetailsPage({ params }: { params: Promise<{ id: s
                     )}
                   </div>
 
-                  {/* Dashboard stats panel */}
+                  {/* Comprehensive Cognitive Analytics Section */}
                   <div className="pt-6 border-t border-white/5 space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-bold text-white text-sm uppercase tracking-wider">Cognitive Game Progress</h4>
-                        <p className="text-[11px] text-slate-400">Real-time rehabilitation data synced directly from patient mobile app</p>
-                      </div>
-                    </div>
-
-                    {(() => {
-                      const totalGames = gameResults.length;
-                      const completedAssignments = games.filter((g: any) => g.status === 'Completed').length;
-                      const completionRate = games.length > 0 ? Math.round((completedAssignments / games.length) * 100) : 0;
-                      const avgAccuracy = totalGames > 0 ? Math.round(gameResults.reduce((acc: any, curr: any) => acc + (curr.accuracy || 0), 0) / totalGames) : 0;
-                      const highestScore = totalGames > 0 ? Math.max(...gameResults.map((r: any) => r.score || 0)) : 0;
-                      const avgScore = totalGames > 0 ? Math.round(gameResults.reduce((acc: any, curr: any) => acc + (curr.score || 0), 0) / totalGames) : 0;
-                      const avgTime = totalGames > 0 ? Math.round(gameResults.reduce((acc: any, curr: any) => acc + (curr.timeTaken || curr.timeTakenSeconds || 0), 0) / totalGames) : 0;
-                      const chartData = [...gameResults].reverse().slice(-7);
-
-                      // Game-wise stats breakdown
-                      const gameCatalogList = ['Memory Match', 'Visual Search', 'Speed Tap', 'Pattern Sequence'];
-                      const gameBreakdowns = gameCatalogList.map((gTitle) => {
-                        const relResults = gameResults.filter((r: any) => r.gameName?.toLowerCase() === gTitle.toLowerCase());
-                        const relAssignments = games.filter((a: any) => a.gameName?.toLowerCase() === gTitle.toLowerCase());
-                        const isAssigned = relAssignments.some((a: any) => a.status === 'Assigned');
-                        const isEverAssigned = relAssignments.length > 0;
-                        const gAttempts = relResults.length;
-                        const gCompleted = relAssignments.filter((a: any) => a.status === 'Completed').length;
-                        const gBest = gAttempts > 0 ? Math.max(...relResults.map((r: any) => r.score || 0)) : 0;
-                        const gAvg = gAttempts > 0 ? Math.round(relResults.reduce((acc: any, r: any) => acc + (r.score || 0), 0) / gAttempts) : 0;
-                        const latestPlayed = relResults[0]?.completionDate || (relResults[0] as any)?.createdAt;
-
-                        return {
-                          title: gTitle,
-                          isAssigned: isAssigned ? 'Yes' : isEverAssigned ? 'Completed' : 'No',
-                          completed: gCompleted,
-                          attempts: gAttempts,
-                          bestScore: gBest,
-                          avgScore: gAvg,
-                          lastPlayed: latestPlayed ? new Date(latestPlayed).toLocaleDateString() : 'Never',
-                        };
-                      });
-
-                      return (
-                        <div className="space-y-6">
-                          {/* Overview KPIs */}
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                            <div className="p-3.5 bg-slate-950/60 border border-white/5 rounded-xl text-center">
-                              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">Assigned / Done</span>
-                              <strong className="text-lg font-extrabold text-white">{games.length} / {completedAssignments}</strong>
-                              <span className="text-[9px] text-clinical-400 font-bold block mt-0.5">{completionRate}% Completion</span>
-                            </div>
-                            <div className="p-3.5 bg-slate-950/60 border border-white/5 rounded-xl text-center">
-                              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">Total Attempts</span>
-                              <strong className="text-lg font-extrabold text-white">{totalGames}</strong>
-                              <span className="text-[9px] text-slate-400 block mt-0.5">Avg speed: {avgTime}s</span>
-                            </div>
-                            <div className="p-3.5 bg-slate-950/60 border border-white/5 rounded-xl text-center">
-                              <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider block">Avg Score</span>
-                              <strong className="text-lg font-extrabold text-emerald-450">{avgScore}</strong>
-                              <span className="text-[9px] text-emerald-400/80 block mt-0.5">Acc: {avgAccuracy}%</span>
-                            </div>
-                            <div className="p-3.5 bg-slate-950/60 border border-white/5 rounded-xl text-center">
-                              <span className="text-[9px] font-bold text-amber-400 uppercase tracking-wider block">Best Score</span>
-                              <strong className="text-lg font-extrabold text-amber-450">{highestScore}</strong>
-                              <span className="text-[9px] text-amber-400/80 block mt-0.5">All exercises</span>
-                            </div>
-                          </div>
-
-                          {/* Game-wise Progress Cards */}
-                          <div className="space-y-3">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
-                              Game-Wise Rehabilitation Breakdown
-                            </span>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              {gameBreakdowns.map((gb, i) => (
-                                <div key={i} className="p-4 bg-slate-950/60 border border-white/5 hover:border-white/10 rounded-xl space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <strong className="text-xs font-bold text-white">{gb.title}</strong>
-                                    <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
-                                      gb.isAssigned === 'Yes'
-                                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                        : gb.isAssigned === 'Completed'
-                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                        : 'bg-slate-800 text-slate-400'
-                                    }`}>
-                                      {gb.isAssigned === 'Yes' ? 'Assigned' : gb.isAssigned}
-                                    </span>
-                                  </div>
-                                  <div className="grid grid-cols-3 gap-2 text-center text-[10px] pt-1">
-                                    <div className="bg-slate-900/60 p-1.5 rounded-lg">
-                                      <span className="text-slate-500 block text-[8px] uppercase">Attempts</span>
-                                      <span className="font-bold text-white">{gb.attempts}</span>
-                                    </div>
-                                    <div className="bg-slate-900/60 p-1.5 rounded-lg">
-                                      <span className="text-slate-500 block text-[8px] uppercase">Best Score</span>
-                                      <span className="font-bold text-amber-400">{gb.bestScore}</span>
-                                    </div>
-                                    <div className="bg-slate-900/60 p-1.5 rounded-lg">
-                                      <span className="text-slate-500 block text-[8px] uppercase">Avg Score</span>
-                                      <span className="font-bold text-emerald-400">{gb.avgScore}</span>
-                                    </div>
-                                  </div>
-                                  <div className="flex justify-between text-[9px] text-slate-500 pt-1 border-t border-white/5">
-                                    <span>Completed: <strong className="text-slate-350">{gb.completed}</strong></span>
-                                    <span>Last Played: <strong className="text-slate-350">{gb.lastPlayed}</strong></span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Chart Container if results exist */}
-                          {totalGames > 0 && (
-                            <div className="border border-white/5 rounded-xl p-4 bg-slate-950/20 space-y-4">
-                              <span className="text-[10px] font-bold text-slate-450 block uppercase tracking-widest">Score progression (Recent sessions)</span>
-                              <div className="flex items-end justify-between h-36 px-2 border-b border-white/5 pb-1">
-                                {chartData.map((res: any, index: number) => {
-                                  const heightPercent = highestScore > 0 ? (res.score / highestScore) * 100 : 0;
-                                  return (
-                                    <div key={index} className="flex flex-col items-center flex-1 group relative">
-                                      <div className="absolute bottom-full mb-1.5 bg-slate-950 border border-white/10 text-white text-[9px] font-bold py-1 px-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap shadow-xl z-10">
-                                        Score: {res.score} • Acc: {res.accuracy}%
-                                      </div>
-                                      <motion.div
-                                        initial={{ height: 0 }}
-                                        animate={{ height: `${Math.max(heightPercent, 10)}%` }}
-                                        transition={{ duration: 0.8, ease: 'easeOut', delay: index * 0.05 }}
-                                        className="w-6 sm:w-8 bg-gradient-to-t from-clinical-600 to-indigo-500 group-hover:from-clinical-550 group-hover:to-indigo-400 rounded-t-md transition-all duration-300"
-                                      ></motion.div>
-                                      <span className="text-[8px] font-bold text-slate-500 mt-2 text-center w-full truncate px-0.5">
-                                        {res.gameName?.split(' ')[0]}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-
-                          <div>
-                            <span className="text-[10px] font-bold text-slate-450 block uppercase tracking-widest mb-3">Logs Details</span>
-                            <div className="border border-white/5 rounded-xl overflow-hidden">
-                              <table className="w-full text-left border-collapse text-[11px]">
-                                <thead>
-                                  <tr className="bg-slate-950/40 border-b border-white/5 text-[9px] uppercase font-bold text-slate-500 tracking-wider">
-                                    <th className="py-2.5 px-4">Game</th>
-                                    <th className="py-2.5 px-4">Score</th>
-                                    <th className="py-2.5 px-4">Accuracy</th>
-                                    <th className="py-2.5 px-4">Speed</th>
-                                    <th className="py-2.5 px-4">Date</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-white/5 text-slate-350">
-                                  {gameResults.map((r: any) => (
-                                    <tr key={r._id} className="hover:bg-white/5 transition">
-                                      <td className="py-2.5 px-4 font-bold text-white">{r.gameName}</td>
-                                      <td className="py-2.5 px-4 font-mono font-bold text-clinical-400">{r.score}</td>
-                                      <td className="py-2.5 px-4">{r.accuracy}%</td>
-                                      <td className="py-2.5 px-4">{r.timeTaken || r.timeTakenSeconds}s</td>
-                                      <td className="py-2.5 px-4 text-slate-500">
-                                        {new Date(r.completionDate || r.completedAt).toLocaleDateString()}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })()}
+                    <PatientCognitiveAnalytics
+                      patientId={id}
+                      patientName={patient?.name}
+                      onRefresh={() => {
+                        refetch();
+                        refetchResults();
+                      }}
+                    />
                   </div>
                 </div>
 

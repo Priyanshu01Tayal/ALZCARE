@@ -19,23 +19,27 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<Patient | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isInitializing, setIsInitializing] = useState<boolean>(true);
 
-  // Restore session on app launch
+  // Restore session on app launch with minimum splash duration for brand stability
   useEffect(() => {
+    let isMounted = true;
     const initializeAuth = async () => {
+      const startTime = Date.now();
       try {
         const storedToken = await getToken();
         const storedUser = await getUser();
 
         if (storedToken && storedUser) {
-          setToken(storedToken);
-          setUser(storedUser);
+          if (isMounted) {
+            setToken(storedToken);
+            setUser(storedUser);
+          }
 
           // Silently refresh profile in background
           try {
             const profileData = await getPatientProfileApi();
-            if (profileData?.patient) {
+            if (profileData?.patient && isMounted) {
               setUser(profileData.patient);
               await saveUser(profileData.patient);
             }
@@ -46,23 +50,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error('Auth initialization error:', error);
       } finally {
-        setIsLoading(false);
+        // Enforce a smooth 1000ms minimum splash display to prevent jarring UI flicker
+        const elapsed = Date.now() - startTime;
+        const remainingDelay = Math.max(0, 1000 - elapsed);
+        setTimeout(() => {
+          if (isMounted) {
+            setIsInitializing(false);
+          }
+        }, remainingDelay);
       }
     };
 
     initializeAuth();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
     try {
-      const authRes = await loginApi(email.trim().toLowerCase(), password);
+      const cleanEmail = email.trim().toLowerCase();
+      const authRes = await loginApi(cleanEmail, password);
 
       // Verify patient role security rule: Only Patients can access patient mobile app
       if (authRes.role !== 'Patient') {
         throw new Error(
           'This mobile application is exclusively for patients. Doctors and administrators please access the AlzCare Web Dashboard.'
         );
+      }
+
+      if (authRes.status === 'Inactive') {
+        throw new Error('Your patient account has been deactivated. Please contact your physician.');
       }
 
       await saveToken(authRes.token);
@@ -82,9 +100,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           _id: authRes._id,
           name: authRes.name,
           email: authRes.email,
-          patientId: 'PAT-0001',
-          age: 68,
-          gender: 'Male',
+          patientId: 'PAT-XXXX',
+          age: 65,
+          gender: 'Other',
           doctorId: '',
         };
         await saveUser(fallbackUser);
@@ -95,8 +113,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToken(null);
       setUser(null);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -126,8 +142,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       value={{
         user,
         token,
-        isLoading,
-        loading: isLoading,
+        isLoading: isInitializing,
+        loading: isInitializing,
         isAuthenticated: !!token && !!user,
         login,
         logout,

@@ -34,10 +34,18 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleLogin = async () => {
-    if (!email.trim()) {
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
       setErrorMessage('Please enter your email address');
       return;
     }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setErrorMessage('Please enter a valid email format (e.g. name@example.com)');
+      return;
+    }
+
     if (!password.trim()) {
       setErrorMessage('Please enter your account password');
       return;
@@ -47,10 +55,12 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
     setIsLoading(true);
 
     try {
-      await login(email, password);
-      navigation.replace('Main');
+      await login(cleanEmail, password);
+      // React Navigation's conditional Stack navigator in AppNavigator automatically transitions
+      // to Main as soon as isAuthenticated becomes true in AuthContext.
     } catch (error: any) {
-      setErrorMessage(error.message || 'Login failed. Please verify your credentials.');
+      console.error('[LoginScreen] Login error:', error);
+      setErrorMessage(error.message || 'Login failed. Please verify your credentials or server connection.');
     } finally {
       setIsLoading(false);
     }
@@ -59,7 +69,7 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
   // Quick fill helper for existing test patient in database
   const fillSamplePatient = () => {
     setEmail('lucky123@gmail.com');
-    setPassword('123456');
+    setPassword('password123');
     setErrorMessage('');
   };
 

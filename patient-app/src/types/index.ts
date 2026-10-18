@@ -14,6 +14,8 @@ export interface Patient {
   age: number;
   gender: string;
   patientId: string;
+  status?: 'Active' | 'Inactive' | 'Pending';
+  mustChangePassword?: boolean;
   phone?: string;
   address?: string;
   stage?: string;

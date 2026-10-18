@@ -3,7 +3,8 @@ import { Patient } from '../types';
 
 let AsyncStorageModule: any = null;
 try {
-  AsyncStorageModule = require('@react-native-async-storage/async-storage').default;
+  const mod = require('@react-native-async-storage/async-storage');
+  AsyncStorageModule = mod?.default || mod;
 } catch (e) {
   // Module not found or unlinked
 }

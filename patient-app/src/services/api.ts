@@ -19,12 +19,13 @@ const PENDING_RESULTS_KEY = '@alzcare_pending_game_results';
 
 // Discover API base URL from Expo environment variable or use local machine IP fallback
 const getBaseUrl = () => {
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return 'http://localhost:5000/api';
-    }
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
+    return `http://${window.location.hostname}:5000/api`;
   }
-  return process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.4:5000/api';
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  return 'http://192.168.29.179:5000/api';
 };
 
 const BASE_URL = getBaseUrl();
@@ -56,17 +57,17 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<{ message?: string }>) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
+    // Only clear storage on 401 if it was an authenticated session call (not login attempt itself)
+    if (error.response?.status === 401 && !error.config?.url?.includes('/auth/login')) {
       await clearAuthStorage();
     }
 
     const friendlyMessage =
       error.response?.data?.message ||
       (error.code === 'ECONNABORTED'
-        ? 'Network request timed out. Please check your connection.'
-        : error.message === 'Network Error'
-        ? 'Cannot reach AlzCare medical server. Make sure your phone and computer are on the same Wi-Fi network.'
+        ? 'Network request timed out. Please check your connection to the AlzCare server.'
+        : error.message === 'Network Error' || (error as any).code === 'ERR_NETWORK'
+        ? `Cannot reach AlzCare medical server at ${BASE_URL}. Ensure your backend is running and phone is on Wi-Fi.`
         : 'A clinical service error occurred. Please try again.');
 
     return Promise.reject(new Error(friendlyMessage));
@@ -84,7 +85,14 @@ export const loginApi = async (email: string, password: string) => {
     email: string;
     role: string;
     token: string;
+    status?: string;
+    mustChangePassword?: boolean;
   };
+};
+
+export const changePasswordApi = async (data: { currentPassword?: string; newPassword: string }) => {
+  const res = await apiClient.put('/patients/me/password', data);
+  return res.data;
 };
 
 export const getMeApi = async () => {

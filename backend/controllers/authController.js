@@ -95,23 +95,34 @@ const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    let user = await Admin.findOne({ email });
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    let user = await Admin.findOne({ email: normalizedEmail });
     let role = 'Admin';
 
     if (!user) {
-      user = await Doctor.findOne({ email });
+      user = await Doctor.findOne({ email: normalizedEmail });
       role = 'Doctor';
     }
 
     if (!user) {
-      user = await Patient.findOne({ email });
+      user = await Patient.findOne({ email: normalizedEmail });
       role = 'Patient';
     }
 
     if (user && (await user.matchPassword(password))) {
       // Check if Doctor is active
       if (role === 'Doctor' && user.isActive === false) {
-        return res.status(403).json({ message: 'Your account has been deactivated. Please contact the administrator.' });
+        return res.status(403).json({ message: 'Your doctor account has been deactivated. Please contact the administrator.' });
+      }
+
+      // Check if Patient account is inactive
+      if (role === 'Patient' && user.status === 'Inactive') {
+        return res.status(403).json({ message: 'Your patient account has been deactivated. Please contact your physician.' });
       }
 
       await logActivity(user._id, role, 'User Logged In', `${role} ${user.name} logged in`);
@@ -125,6 +136,8 @@ const loginUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role,
+        status: user.status || 'Active',
+        mustChangePassword: user.mustChangePassword || false,
         token: generateToken(user._id, role),
       });
     } else {

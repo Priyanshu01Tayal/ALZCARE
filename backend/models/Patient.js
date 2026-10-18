@@ -52,6 +52,15 @@ const patientSchema = mongoose.Schema(
       phone: { type: String, default: '' },
       relation: { type: String, default: '' },
     },
+    status: {
+      type: String,
+      enum: ['Active', 'Inactive', 'Pending'],
+      default: 'Active',
+    },
+    mustChangePassword: {
+      type: Boolean,
+      default: false,
+    },
     lastActive: {
       type: Date,
       default: Date.now,
