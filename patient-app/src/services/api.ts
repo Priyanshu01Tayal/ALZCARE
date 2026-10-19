@@ -19,23 +19,31 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const PENDING_RESULTS_KEY = '@alzcare_pending_game_results';
 
 export const SERVER_URL_KEY = '@alzcare_custom_server_url';
+export const PROD_API_URL = 'https://alzcare1.onrender.com/api';
+export const LOCAL_DEV_API_URL = 'http://192.168.1.5:5000/api';
 
-// Discover API base URL from Expo environment variable or use local machine IP fallback
+// Discover API base URL: prioritized by explicit environment variable, then production cloud backend
 export const getDefaultBaseUrl = () => {
+  if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.trim().length > 0) {
+    return process.env.EXPO_PUBLIC_API_URL.trim();
+  }
   if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
     return `http://${window.location.hostname}:5000/api`;
   }
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
-  }
-  return 'http://192.168.1.5:5000/api';
+  return PROD_API_URL;
 };
 
 export const getStoredServerUrl = async (): Promise<string> => {
   try {
     const custom = await AsyncStorage.getItem(SERVER_URL_KEY);
     if (custom && custom.trim().length > 0) {
-      return custom.trim();
+      const trimmed = custom.trim();
+      // Auto-migrate obsolete legacy Wi-Fi IP defaults so devices automatically switch to production cloud backend
+      if (trimmed === 'http://192.168.1.5:5000/api' || trimmed === 'http://192.168.1.4:5000/api') {
+        await AsyncStorage.removeItem(SERVER_URL_KEY);
+        return getDefaultBaseUrl();
+      }
+      return trimmed;
     }
   } catch (e) {
     // fallback
@@ -46,7 +54,7 @@ export const getStoredServerUrl = async (): Promise<string> => {
 export const setCustomServerUrl = async (url: string): Promise<string> => {
   let cleanUrl = url.trim().replace(/\/+$/, '');
   if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-    cleanUrl = `http://${cleanUrl}`;
+    cleanUrl = `https://${cleanUrl}`;
   }
   const finalUrl = cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
   await AsyncStorage.setItem(SERVER_URL_KEY, finalUrl);
@@ -77,7 +85,7 @@ export const checkBackendHealth = async (overrideUrl?: string): Promise<HealthCh
   const startTime = Date.now();
   try {
     const response = await axios.get(healthUrl, {
-      timeout: 6000,
+      timeout: 15000, // 15 second timeout to accommodate Render cloud cold-starts
       headers: {
         Accept: 'application/json',
         'Bypass-Tunnel-Reminder': 'true',
@@ -103,9 +111,13 @@ export const checkBackendHealth = async (overrideUrl?: string): Promise<HealthCh
     const latencyMs = Date.now() - startTime;
     let detail = 'Network request failed or timed out.';
     if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-      detail = 'Connection timed out (6s). Device cannot reach this IP/port.';
-    } else if (error.message?.includes('Network Error')) {
-      detail = 'Network Error. Ensure phone and laptop are on same Wi-Fi, or check Windows Firewall.';
+      detail = targetBaseUrl.includes('onrender.com')
+        ? 'Connection timed out (15s). Cloud instance may be waking from sleep, please retry in a moment.'
+        : 'Connection timed out (15s). Device cannot reach this IP/port.';
+    } else if (error.message?.includes('Network Error') || error.code === 'ERR_NETWORK') {
+      detail = targetBaseUrl.includes('192.168.') || targetBaseUrl.includes('localhost')
+        ? 'Network Error. Ensure phone and laptop are on same Wi-Fi, or switch to Production Cloud Server.'
+        : 'Network Error. Cannot connect to ALZCARE Cloud Server. Please check your internet connection.';
     } else if (error.response?.data?.message) {
       detail = error.response.data.message;
     }
@@ -163,12 +175,17 @@ apiClient.interceptors.response.use(
       await clearAuthStorage();
     }
 
+    const activeUrl = error.config?.baseURL || BASE_URL;
+    const isCloud = activeUrl.includes('onrender.com') || activeUrl.startsWith('https://');
+
     const friendlyMessage =
       error.response?.data?.message ||
       (error.code === 'ECONNABORTED'
-        ? 'Network request timed out. Please check your connection to the AlzCare server.'
+        ? `Request timed out connecting to ${activeUrl}. The server may be waking up from cold sleep, please retry.`
         : error.message === 'Network Error' || (error as any).code === 'ERR_NETWORK'
-        ? `Cannot reach AlzCare medical server at ${BASE_URL}. Ensure your backend is running and phone is on Wi-Fi.`
+        ? isCloud
+          ? `Cannot reach ALZCARE Cloud Server at ${activeUrl}. Please verify your phone has active internet access.`
+          : `Cannot reach local development server at ${activeUrl}. Ensure your computer and phone are on the same Wi-Fi, or switch to Production.`
         : 'A clinical service error occurred. Please try again.');
 
     return Promise.reject(new Error(friendlyMessage));

@@ -24,6 +24,9 @@ import {
   resetCustomServerUrl,
   checkBackendHealth,
   HealthCheckResult,
+  getDefaultBaseUrl,
+  PROD_API_URL,
+  LOCAL_DEV_API_URL,
 } from '../services/api';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
@@ -43,8 +46,8 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
   // Server Settings & Connection state
   const [isServerModalVisible, setIsServerModalVisible] = useState(false);
-  const [currentServerUrl, setCurrentServerUrl] = useState('http://192.168.1.5:5000/api');
-  const [serverInputText, setServerInputText] = useState('http://192.168.1.5:5000/api');
+  const [currentServerUrl, setCurrentServerUrl] = useState(getDefaultBaseUrl());
+  const [serverInputText, setServerInputText] = useState(getDefaultBaseUrl());
   const [healthStatus, setHealthStatus] = useState<HealthCheckResult | null>(null);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
 
@@ -352,12 +355,48 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
               Enter your computer's local Wi-Fi IP address or production backend URL.
             </Text>
 
+            <Text style={styles.modalLabel}>PRESET ENVIRONMENTS</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  paddingVertical: 10,
+                  paddingHorizontal: 8,
+                  backgroundColor: serverInputText.includes('onrender.com') ? Colors.surfaceHighlight : Colors.card,
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  borderWidth: 1.5,
+                  borderColor: serverInputText.includes('onrender.com') ? Colors.primaryLight : Colors.border,
+                }}
+                onPress={() => setServerInputText(PROD_API_URL)}
+              >
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Cloud Production</Text>
+                <Text style={{ color: Colors.primaryLight, fontSize: 10, marginTop: 2 }}>Render Online</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  paddingVertical: 10,
+                  paddingHorizontal: 8,
+                  backgroundColor: serverInputText.includes('192.168') ? Colors.surfaceHighlight : Colors.card,
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  borderWidth: 1.5,
+                  borderColor: serverInputText.includes('192.168') ? Colors.primaryLight : Colors.border,
+                }}
+                onPress={() => setServerInputText(LOCAL_DEV_API_URL)}
+              >
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>Local Machine</Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 10, marginTop: 2 }}>Wi-Fi LAN</Text>
+              </TouchableOpacity>
+            </View>
+
             <Text style={styles.modalLabel}>SERVER API URL</Text>
             <TextInput
               style={styles.modalInput}
               value={serverInputText}
               onChangeText={setServerInputText}
-              placeholder="http://192.168.1.5:5000/api"
+              placeholder="https://alzcare1.onrender.com/api"
               placeholderTextColor={Colors.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
