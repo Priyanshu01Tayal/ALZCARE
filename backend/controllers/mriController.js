@@ -7,7 +7,10 @@ const logActivity = require('../utils/activityLogger');
 
 // Helper function to call Python ML service
 const runMriAnalysis = async (mriReport, originalFileName) => {
- const mlServiceUrl = process.env.ML_SERVICE_URL;
+  let mlServiceUrl = (process.env.ML_SERVICE_URL || 'https://alzheimer-ml-deployment.onrender.com/predict').trim();
+  if (!mlServiceUrl.endsWith('/predict')) {
+    mlServiceUrl = `${mlServiceUrl.replace(/\/+$/, '')}/predict`;
+  }
 
   try {
     const absoluteFilePath = path.join(__dirname, '..', mriReport.filePath);
@@ -16,9 +19,13 @@ const runMriAnalysis = async (mriReport, originalFileName) => {
     }
 
     const fileBuffer = fs.readFileSync(absoluteFilePath);
+    const fileName = originalFileName || mriReport.fileName || 'scan.png';
+    const ext = path.extname(fileName).toLowerCase();
+    const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
+
     const formData = new FormData();
-    const blob = new Blob([fileBuffer], { type: 'image/png' });
-    formData.append('file', blob, originalFileName || mriReport.fileName);
+    const blob = new Blob([fileBuffer], { type: mimeType });
+    formData.append('file', blob, fileName);
 
     const response = await fetch(mlServiceUrl, {
       method: 'POST',

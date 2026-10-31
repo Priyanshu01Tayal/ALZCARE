@@ -270,7 +270,7 @@ async function runEcosystemVerification() {
       patientId: patientA._id,
       gameName: 'Memory Match',
       score: 95,
-    });
+    }).sort({ createdAt: -1 });
     if (!resultInDb) throw new Error('TEST 3 FAILED: GameResult record not found in MongoDB.');
     console.log(`[TEST 3] MongoDB Result Verified: Score=${resultInDb.score}, Accuracy=${resultInDb.accuracy}%`);
 

@@ -5,6 +5,7 @@ import { useAuthStore } from '@/lib/stores/auth';
 import { usePatientQuery, useUploadMriMutation, useAnalyzeMriMutation } from '@/hooks/useApi';
 import { UploadCloud, CheckCircle, Clock, FileCode } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { API_URL } from '@/lib/api/client';
 
 export default function PatientUpload() {
   const { user, initialize } = useAuthStore();
@@ -177,7 +178,7 @@ export default function PatientUpload() {
                   </div>
                   
                   <a
-                    href={`http://localhost:5000${m.filePath || m.filepath}`}
+                    href={`${API_URL}${m.filePath || m.filepath}`}
                     target="_blank"
                     rel="noreferrer"
                     className="bg-slate-950 hover:bg-slate-900 text-slate-300 border border-white/5 px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition"

@@ -16,9 +16,16 @@ dist/
 
 # Environment variables
 .env
-.env*.local
-backend/.env
+*.env
+.env*
+!.env.example
 !*.env.example
+backend/.env
+backend/.env*.local
+frontend/.env
+frontend/.env*.local
+patient-app/.env
+patient-app/.env*.local
 
 # Dynamic user uploads
 backend/uploads/*

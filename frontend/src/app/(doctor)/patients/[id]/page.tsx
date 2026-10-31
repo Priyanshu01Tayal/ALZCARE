@@ -36,6 +36,7 @@ import {
 } from '@/hooks/useApi';
 import { useToastStore } from '@/lib/stores/toast';
 import { PatientCognitiveAnalytics } from '@/components/doctor/PatientCognitiveAnalytics';
+import { API_URL } from '@/lib/api/client';
 
 export default function PatientDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -554,7 +555,7 @@ export default function PatientDetailsPage({ params }: { params: Promise<{ id: s
                           </div>
                           
                           <a
-                            href={`http://localhost:5000${m.filePath || m.filepath}`}
+                            href={`${API_URL}${m.filePath || m.filepath}`}
                             target="_blank"
                             rel="noreferrer"
                             className="h-10 px-4 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold shrink-0 transition flex items-center justify-center cursor-pointer"
